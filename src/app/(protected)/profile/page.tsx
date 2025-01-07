@@ -1,9 +1,62 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+
+const TIMEZONES = [
+  'Anchorage (AKST) -09:00 UTC',
+  'Auckland (NZST) +12:00 UTC',
+  'Bangkok (ICT) +07:00 UTC',
+  'Beijing (CST) +08:00 UTC',
+  'Berlin (CET) +01:00 UTC',
+  'Brisbane (AEST) +10:00 UTC',
+  'Cairo (EET) +02:00 UTC',
+  'Chicago (CST) -06:00 UTC',
+  'Denver (MST) -07:00 UTC',
+  'Dubai (GST) +04:00 UTC',
+  'Dublin (IST) +01:00 UTC',
+  'Hong Kong (HKT) +08:00 UTC',
+  'Honolulu (HST) -10:00 UTC',
+  'Istanbul (TRT) +03:00 UTC',
+  'Jakarta (WIB) +07:00 UTC',
+  'Jerusalem (IST) +02:00 UTC',
+  'Johannesburg (SAST) +02:00 UTC',
+  'Karachi (PKT) +05:00 UTC',
+  'Kolkata (IST) +05:30 UTC',
+  'Kuala Lumpur (MYT) +08:00 UTC',
+  'London (GMT) +00:00 UTC',
+  'Los Angeles (PST) -08:00 UTC',
+  'Madrid (CET) +01:00 UTC',
+  'Mexico City (CST) -06:00 UTC',
+  'Moscow (MSK) +03:00 UTC',
+  'Mumbai (IST) +05:30 UTC',
+  'New Delhi (IST) +05:30 UTC',
+  'New York (EST) -05:00 UTC',
+  'Paris (CET) +01:00 UTC',
+  'Rio de Janeiro (BRT) -03:00 UTC',
+  'Rome (CET) +01:00 UTC',
+  'São Paulo (BRT) -03:00 UTC',
+  'Seoul (KST) +09:00 UTC',
+  'Shanghai (CST) +08:00 UTC',
+  'Singapore (SGT) +08:00 UTC',
+  'Sydney (AEST) +10:00 UTC',
+  'Taipei (CST) +08:00 UTC',
+  'Tokyo (JST) +09:00 UTC',
+  'Toronto (EST) -05:00 UTC',
+  'Vancouver (PST) -08:00 UTC',
+  'Vienna (CET) +01:00 UTC',
+  'Wellington (NZST) +12:00 UTC',
+  'Zurich (CET) +01:00 UTC'
+].sort();
+
+const STATUS_OPTIONS = [
+  'online',
+  'offline',
+  'busy',
+  'away'
+].sort();
 
 export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
@@ -16,11 +69,32 @@ export default function ProfilePage() {
   const [statusMessage, setStatusMessage] = useState('');
   const [timezone, setTimezone] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('/defpropic.jpg');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const timezoneRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const supabase = createClient();
+  const [timezoneSearch, setTimezoneSearch] = useState('');
+  const [statusSearch, setStatusSearch] = useState('');
+  const [showStatusSuggestions, setShowStatusSuggestions] = useState(false);
+  const statusRef = useRef<HTMLDivElement>(null);
+  const [status, setStatus] = useState('online');
 
   useEffect(() => {
     getProfile();
+  }, []);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (timezoneRef.current && !timezoneRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+      if (statusRef.current && !statusRef.current.contains(event.target as Node)) {
+        setShowStatusSuggestions(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   async function getProfile() {
@@ -126,6 +200,14 @@ export default function ProfilePage() {
       .data.publicUrl;
   };
 
+  const filteredTimezones = TIMEZONES.filter(tz => 
+    tz.toLowerCase().includes(timezoneSearch.toLowerCase())
+  );
+
+  const filteredStatuses = STATUS_OPTIONS.filter(s => 
+    s.toLowerCase().includes(statusSearch.toLowerCase())
+  );
+
   return (
     <main className="min-h-screen p-8">
       <div className="max-w-2xl mx-auto">
@@ -202,24 +284,76 @@ export default function ProfilePage() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Status Message</label>
-                <input
-                  type="text"
-                  value={statusMessage}
-                  onChange={(e) => setStatusMessage(e.target.value)}
-                  className="mt-1 block w-full rounded-md border p-2"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Timezone</label>
+              <div className="relative" ref={timezoneRef}>
+                <label className="block text-sm font-medium text-gray-700">
+                  Timezone
+                </label>
                 <input
                   type="text"
                   value={timezone}
-                  onChange={(e) => setTimezone(e.target.value)}
-                  className="mt-1 block w-full rounded-md border p-2"
+                  onChange={(e) => {
+                    setTimezone(e.target.value);
+                    setTimezoneSearch(e.target.value);
+                    setShowSuggestions(true);
+                  }}
+                  onFocus={() => setShowSuggestions(true)}
+                  placeholder="Search timezone..."
+                  className="mt-1 block w-full rounded-md border border-gray-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
                 />
+                {showSuggestions && filteredTimezones.length > 0 && (
+                  <div className="absolute z-10 mt-1 w-full rounded-md bg-white shadow-lg">
+                    <ul className="max-h-60 overflow-auto rounded-md py-1 text-base">
+                      {filteredTimezones.map((tz) => (
+                        <li
+                          key={tz}
+                          onClick={() => {
+                            setTimezone(tz);
+                            setShowSuggestions(false);
+                          }}
+                          className="cursor-pointer px-3 py-2 hover:bg-gray-100"
+                        >
+                          {tz}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+              
+              <div className="relative" ref={statusRef}>
+                <label className="block text-sm font-medium text-gray-700">
+                  Status
+                </label>
+                <input
+                  type="text"
+                  value={status}
+                  onChange={(e) => {
+                    setStatus(e.target.value);
+                    setStatusSearch(e.target.value);
+                    setShowStatusSuggestions(true);
+                  }}
+                  onFocus={() => setShowStatusSuggestions(true)}
+                  placeholder="Set status..."
+                  className="mt-1 block w-full rounded-md border border-gray-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                />
+                {showStatusSuggestions && filteredStatuses.length > 0 && (
+                  <div className="absolute z-10 mt-1 w-full rounded-md bg-white shadow-lg">
+                    <ul className="max-h-60 overflow-auto rounded-md py-1 text-base">
+                      {filteredStatuses.map((s) => (
+                        <li
+                          key={s}
+                          onClick={() => {
+                            setStatus(s);
+                            setShowStatusSuggestions(false);
+                          }}
+                          className="cursor-pointer px-3 py-2 hover:bg-gray-100"
+                        >
+                          {s}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
               
               <button
