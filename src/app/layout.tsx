@@ -2,6 +2,7 @@ import "./globals.css";
 import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 import Link from 'next/link';
+import { Logo } from '@/components/Logo';
 
 export default async function RootLayout({
   children,
@@ -16,8 +17,9 @@ export default async function RootLayout({
       <body>
         <nav className="fixed top-0 left-0 right-0 p-4 bg-white shadow-sm z-10">
           <div className="max-w-7xl mx-auto">
-            <Link href="/" className="text-xl font-bold text-blue-600">
-              ChatGenius
+            <Link href="/" className="flex items-center space-x-0.1">
+              <Logo className="w-8 h-8" />
+              <span className="text-xl font-bold text-blue-600">ChatGenius</span>
             </Link>
           </div>
         </nav>

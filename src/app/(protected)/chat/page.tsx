@@ -6,7 +6,7 @@ export default function ChatPage() {
   const users = useUsers();
 
   return (
-    <div className="flex h-screen pt-16">
+    <div className="flex h-[calc(100vh-4rem)]">
       {/* Sidebar */}
       <div className="w-64 bg-gray-800 text-white flex flex-col">
         {/* Workspace Name */}

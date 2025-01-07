@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
+import { Logo } from '@/components/Logo';
 
 export default function SignupPage() {
   const [loading, setLoading] = useState(false);
@@ -32,9 +33,14 @@ export default function SignupPage() {
         },
       });
 
-      if (signUpError) throw signUpError;
+      if (signUpError) {
+        if (signUpError.message.includes('User already registered')) {
+          throw new Error('An account with this email already exists. Please log in instead.');
+        }
+        throw signUpError;
+      }
 
-      router.push('/login?message=Check your email to confirm your account');
+      router.push('/login?message=Please check your email to confirm your account. The confirmation link will expire in 24 hours.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -45,7 +51,8 @@ export default function SignupPage() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-8">
       <div className="w-full max-w-md space-y-8">
-        <div>
+        <div className="flex flex-col items-center">
+          <Logo className="mb-2" />
           <h2 className="mt-6 text-center text-3xl font-bold">
             Create your account
           </h2>

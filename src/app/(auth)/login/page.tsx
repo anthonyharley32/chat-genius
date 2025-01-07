@@ -27,7 +27,12 @@ export default function LoginPage() {
         password,
       });
 
-      if (signInError) throw signInError;
+      if (signInError) {
+        if (signInError.message.includes('Invalid login credentials')) {
+          throw new Error('Invalid login credentials. Make sure you have confirmed your email and entered the correct password.');
+        }
+        throw signInError;
+      }
 
       router.push('/chat');
       router.refresh();
