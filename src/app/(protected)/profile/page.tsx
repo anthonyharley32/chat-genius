@@ -60,8 +60,6 @@ const STATUS_OPTIONS = [
 ].sort();
 
 export default function ProfilePage() {
-  const avatar = useUserStore((state) => state.avatar);
-  const setAvatar = useUserStore((state) => state.setAvatar);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [fullName, setFullName] = useState('');
@@ -70,7 +68,8 @@ export default function ProfilePage() {
   const [bio, setBio] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
   const [timezone, setTimezone] = useState('');
-  const [avatarUrl, setAvatarUrl] = useState('/defpropic.jpg');
+  const avatar = useUserStore((state) => state.avatar);
+  const setAvatar = useUserStore((state) => state.setAvatar);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const timezoneRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -80,7 +79,7 @@ export default function ProfilePage() {
   const [showStatusSuggestions, setShowStatusSuggestions] = useState(false);
   const statusRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState('online');
-  
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     getProfile();
@@ -101,6 +100,7 @@ export default function ProfilePage() {
   }, []);
 
   async function getProfile() {
+    setIsLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
@@ -124,8 +124,12 @@ export default function ProfilePage() {
         setBio(data.bio || '');
         setTimezone(data.timezone || '');
         setStatus(data.status || 'online');
+        
         if (data.avatar_url) {
-          const avatarUrl = getAvatarUrl(data.avatar_url);
+          const avatarUrl = supabase.storage
+            .from('avatars')
+            .getPublicUrl(data.avatar_url)
+            .data.publicUrl;
           setAvatar(avatarUrl);
         }
       }
@@ -133,6 +137,7 @@ export default function ProfilePage() {
       console.error('Error loading user:', error);
     } finally {
       setLoading(false);
+      setIsLoading(false);
     }
   }
 
@@ -143,12 +148,12 @@ export default function ProfilePage() {
 
       const updates = {
         full_name: fullName,
+        username,
         display_name: displayName,
-        bio: bio,
-        timezone: timezone,
-        status: status,
-        email: user.email,
-        updated_at: new Date().toISOString()
+        bio,
+        timezone,
+        status,
+        updated_at: new Date().toISOString(),
       };
 
       const { error } = await supabase
@@ -161,6 +166,15 @@ export default function ProfilePage() {
     } catch (error) {
       console.error('Error updating profile:', error);
       alert('Error updating profile');
+    }
+  }
+
+  async function handleSignOut() {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('Error signing out:', error);
+    } else {
+      router.push('/login');
     }
   }
 
@@ -193,7 +207,11 @@ export default function ProfilePage() {
 
       if (updateError) throw updateError;
       
-      const avatarUrl = getAvatarUrl(filePath);
+      const avatarUrl = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath)
+        .data.publicUrl;
+
       setAvatar(avatarUrl);
     } catch (error) {
       console.error('Error uploading avatar:', error);
@@ -218,28 +236,21 @@ export default function ProfilePage() {
     s.toLowerCase().includes(statusSearch.toLowerCase())
   );
 
-  async function handleSignOut() {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error('Error signing out:', error);
-    } else {
-      router.push('/login');
-    }
-  }
-
   return (
     <main className="min-h-screen p-8">
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center gap-4 mb-6">
             <div className="relative">
-              <Image
-                src={getAvatarUrl(avatar)}
-                alt="Profile"
-                width={100}
-                height={100}
-                className="rounded-full"
-              />
+              {!isLoading && (
+                <Image
+                  src={avatar}
+                  alt="Profile"
+                  width={100}
+                  height={100}
+                  className="rounded-full"
+                />
+              )}
               <label className="absolute bottom-0 right-0 bg-blue-600 rounded-full p-2 cursor-pointer hover:bg-blue-500">
                 <input
                   type="file"
