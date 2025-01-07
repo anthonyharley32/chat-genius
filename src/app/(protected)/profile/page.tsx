@@ -3,11 +3,19 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [avatar, setAvatar] = useState('/defpropic.jpg');
   const [fullName, setFullName] = useState('');
+  const [username, setUsername] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
+  const [statusMessage, setStatusMessage] = useState('');
+  const [timezone, setTimezone] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('/defpropic.jpg');
   const router = useRouter();
   const supabase = createClient();
 
@@ -26,7 +34,7 @@ export default function ProfilePage() {
 
       const { data, error } = await supabase
         .from('users')
-        .select('full_name, bio')
+        .select('*')
         .eq('id', user.id)
         .single();
 
@@ -34,7 +42,11 @@ export default function ProfilePage() {
 
       if (data) {
         setFullName(data.full_name || '');
+        setUsername(data.username || '');
+        setDisplayName(data.display_name || '');
         setBio(data.bio || '');
+        setStatusMessage(data.status_message || '');
+        setTimezone(data.timezone || '');
       }
     } catch (error) {
       console.error('Error loading user:', error);
@@ -46,31 +58,103 @@ export default function ProfilePage() {
   async function updateProfile() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-
       if (!user) throw new Error('No user');
 
       const updates = {
         id: user.id,
         full_name: fullName,
+        username,
+        display_name: displayName,
         bio,
+        status_message: statusMessage,
+        timezone,
         updated_at: new Date().toISOString(),
       };
 
       const { error } = await supabase.from('users').upsert(updates);
       if (error) throw error;
+      
+      alert('Profile updated successfully!');
     } catch (error) {
       console.error('Error updating profile:', error);
+      alert('Error updating profile');
     }
   }
 
+  async function uploadAvatar(event: React.ChangeEvent<HTMLInputElement>) {
+    try {
+      setUploading(true);
+      
+      if (!event.target.files || event.target.files.length === 0) {
+        throw new Error('You must select an image to upload.');
+      }
+
+      const file = event.target.files[0];
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No user');
+
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ avatar_url: filePath })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+      
+      setAvatar(filePath);
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  const getAvatarUrl = (path: string) => {
+    if (path.startsWith('http') || path.startsWith('/')) return path;
+    return supabase.storage
+      .from('avatars')
+      .getPublicUrl(path)
+      .data.publicUrl;
+  };
+
   return (
-    <main className="flex min-h-screen flex-col items-center p-8">
-      <div className="w-full max-w-2xl">
+    <main className="min-h-screen p-8">
+      <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center space-x-4">
-            <div className="h-20 w-20 rounded-full bg-gray-200"></div>
+          <div className="flex items-center gap-4 mb-6">
+            <div className="relative">
+              <Image
+                src={getAvatarUrl(avatar)}
+                alt="Profile"
+                width={100}
+                height={100}
+                className="rounded-full"
+              />
+              <label className="absolute bottom-0 right-0 bg-blue-600 rounded-full p-2 cursor-pointer hover:bg-blue-500">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={uploadAvatar}
+                  disabled={uploading}
+                />
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                </svg>
+              </label>
+            </div>
             <div>
-              <h1 className="text-2xl font-bold">{fullName || 'Loading...'}</h1>
+              <h1 className="text-2xl font-bold">{displayName || fullName || 'Loading...'}</h1>
+              <p className="text-gray-500">@{username}</p>
             </div>
           </div>
           
@@ -78,11 +162,32 @@ export default function ProfilePage() {
             <h2 className="text-xl font-semibold mb-4">Profile Settings</h2>
             <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); updateProfile(); }}>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Name</label>
+                <label className="block text-sm font-medium text-gray-700">Username</label>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="mt-1 block w-full rounded-md border p-2"
+                  minLength={3}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Full Name</label>
                 <input
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
+                  className="mt-1 block w-full rounded-md border p-2"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Display Name</label>
+                <input
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
                   className="mt-1 block w-full rounded-md border p-2"
                 />
               </div>
@@ -94,7 +199,27 @@ export default function ProfilePage() {
                   onChange={(e) => setBio(e.target.value)}
                   className="mt-1 block w-full rounded-md border p-2"
                   rows={3}
-                ></textarea>
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Status Message</label>
+                <input
+                  type="text"
+                  value={statusMessage}
+                  onChange={(e) => setStatusMessage(e.target.value)}
+                  className="mt-1 block w-full rounded-md border p-2"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Timezone</label>
+                <input
+                  type="text"
+                  value={timezone}
+                  onChange={(e) => setTimezone(e.target.value)}
+                  className="mt-1 block w-full rounded-md border p-2"
+                />
               </div>
               
               <button

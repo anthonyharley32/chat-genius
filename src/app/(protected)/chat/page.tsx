@@ -8,7 +8,9 @@ type Message = {
   id: string;
   content: string;
   user_id: string;
-  channel: string;
+  channel?: string;
+  is_direct_message: boolean;
+  receiver_id?: string;
   created_at: string;
   users: {
     full_name: string;
@@ -19,110 +21,124 @@ type Message = {
 };
 
 export default function ChatPage() {
-  const users = useUsers();
-  const [currentChannel, setCurrentChannel] = useState('general');
-  const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
+  const [message, setMessage] = useState('');
+  const [channels, setChannels] = useState<{id: string, name: string}[]>([]);
+  const [currentChannel, setCurrentChannel] = useState<string>('');
+  const [selectedUser, setSelectedUser] = useState<string | null>(null);
+  const users = useUsers();
   const supabase = createClient();
 
-  // Load messages when channel changes
+  // Load channels from database
   useEffect(() => {
-    console.log('Loading messages for channel:', currentChannel);
+    async function loadChannels() {
+      const { data: channelsData, error } = await supabase
+        .from('channels')
+        .select('id, name')
+        .order('name');
+
+      if (error) {
+        console.error('Error loading channels:', error);
+        return;
+      }
+
+      setChannels(channelsData || []);
+      // Set first channel as default if none selected
+      if (!currentChannel && channelsData && channelsData.length > 0) {
+        setCurrentChannel(channelsData[0].id);
+      }
+    }
+
+    loadChannels();
+  }, []);
+
+  useEffect(() => {
     loadMessages();
     
-    // Subscribe to new messages
+    // Subscribe to messages
     const channel = supabase
-      .channel(`messages:${currentChannel}`)
+      .channel(`messages:${selectedUser || currentChannel}`)
       .on('postgres_changes', 
         { 
           event: 'INSERT', 
           schema: 'public', 
           table: 'messages',
-          filter: `channel=eq.${currentChannel}`
+          filter: selectedUser 
+            ? `is_direct_message=eq.true`
+            : `channel=eq.${currentChannel}`
         }, 
         async (payload) => {
           console.log('New message received:', payload);
           
-          // Remove .single() and handle the user lookup similar to loadMessages
-          const { data: usersData, error: usersError } = await supabase
+          const { data: userData } = await supabase
             .from('users')
-            .select('id, full_name')
-            .eq('id', payload.new.user_id);
-
-          let userName = 'Unknown User';
-          if (!usersError && usersData && usersData.length > 0) {
-            userName = usersData[0].full_name;
-          }
+            .select('full_name')
+            .eq('id', payload.new.user_id)
+            .single();
 
           const newMessage = {
             ...payload.new,
-            users: { full_name: userName },
-            user: { full_name: userName }
+            users: { full_name: userData?.full_name || 'Unknown User' },
+            user: { full_name: userData?.full_name || 'Unknown User' }
           } as Message;
           
-          setMessages(prev => [...prev, newMessage]);
+          // Only add message if it belongs to current conversation
+          if (
+            (!selectedUser && !payload.new.is_direct_message) || 
+            (selectedUser && payload.new.is_direct_message && 
+              (payload.new.receiver_id === selectedUser || payload.new.user_id === selectedUser))
+          ) {
+            setMessages(prev => [...prev, newMessage]);
+          }
         }
       )
       .subscribe();
 
-    console.log('Subscribed to channel:', currentChannel);
-
     return () => {
-      console.log('Unsubscribing from channel:', currentChannel);
       supabase.removeChannel(channel);
     };
-  }, [currentChannel]);
+  }, [currentChannel, selectedUser]);
 
   const loadMessages = async () => {
-    console.log('Fetching messages...');
-    const { data: messagesData, error: messagesError } = await supabase
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    let query = supabase
       .from('messages')
-      .select('*')
-      .eq('channel', currentChannel)
+      .select(`
+        *,
+        users!messages_user_id_fkey (
+          username,
+          full_name,
+          avatar_url
+        )
+      `)
       .order('created_at', { ascending: true });
 
-    if (messagesError) {
-      console.error('Error loading messages:', messagesError);
+    if (selectedUser) {
+      // Load DMs
+      query = query
+        .eq('is_direct_message', true)
+        .or(`user_id.eq.${user.id},receiver_id.eq.${user.id}`)
+        .or(`user_id.eq.${selectedUser},receiver_id.eq.${selectedUser}`);
+    } else {
+      // Load channel messages
+      query = query
+        .eq('channel_id', currentChannel)
+        .eq('is_direct_message', false);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Error loading messages:', error);
       return;
     }
 
-    // If there are no messages, set empty array and return
-    if (!messagesData || messagesData.length === 0) {
-      setMessages([]);
-      return;
-    }
-
-    // Add explicit typing to the Set
-    const userIds = Array.from(new Set<string>(messagesData?.map(msg => msg.user_id) || []));
-    
-    // Handle empty userIds array
-    if (userIds.length === 0) {
-      setMessages([]);
-      return;
-    }
-
-    const { data: usersData, error: usersError } = await supabase
-      .from('users')
-      .select('id, full_name')
-      .in('id', userIds);
-
-    // Type the userMap properly
-    const userMap: Record<string, { id: string; full_name: string }> = {};
-    
-    // Safely populate userMap even if usersData is null or there's an error
-    if (!usersError && usersData) {
-      usersData.forEach(user => {
-        userMap[user.id] = user;
-      });
-    }
-
-    console.log('Loaded messages:', messagesData);
-    setMessages(messagesData.map(msg => ({
+    setMessages((data || []).map(msg => ({
       ...msg,
-      users: userMap[msg.user_id] || { full_name: 'Unknown User' },
-      user: {
-        full_name: userMap[msg.user_id]?.full_name || 'Unknown User'
-      }
+      users: { full_name: msg.sender?.full_name || 'Unknown User' },
+      user: { full_name: msg.sender?.full_name || 'Unknown User' }
     })));
   };
 
@@ -131,16 +147,26 @@ export default function ChatPage() {
     if (!message.trim()) return;
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) return;
+
+      const messageData = selectedUser
+        ? {
+            content: message.trim(),
+            user_id: userData.user.id,
+            receiver_id: selectedUser,
+            is_direct_message: true
+          }
+        : {
+            content: message.trim(),
+            channel_id: currentChannel,
+            user_id: userData.user.id,
+            is_direct_message: false
+          };
 
       const { error } = await supabase
         .from('messages')
-        .insert({
-          content: message,
-          channel: currentChannel,
-          user_id: user.id
-        });
+        .insert([messageData]);
 
       if (error) throw error;
       setMessage('');
@@ -149,18 +175,27 @@ export default function ChatPage() {
     }
   };
 
-  const channels = [
-    { id: 'general', name: 'general' },
-    { id: 'random', name: 'random' }
-  ];
+  const handleMessageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setMessage(e.target.value);
+  };
+
+  // Helper function to get current channel name
+  const getCurrentChannelName = () => {
+    if (selectedUser) {
+      const user = users.find(u => u.id === selectedUser);
+      return user?.full_name || 'Direct Message';
+    }
+    const channel = channels.find(c => c.id === currentChannel);
+    return channel ? `#${channel.name}` : '';
+  };
 
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
+    <div className="flex h-[calc(100vh-3rem)]">
       {/* Sidebar */}
       <div className="w-64 bg-gray-800 text-white flex flex-col">
         {/* Workspace Name */}
-        <div className="p-4 border-b border-gray-700">
-          <h1 className="font-bold">Workspace Name</h1>
+        <div className="p-3 border-b border-gray-700">
+          <h1 className="font-bold">ChatGenius</h1>
         </div>
         
         {/* Channels */}
@@ -170,9 +205,12 @@ export default function ChatPage() {
             {channels.map(channel => (
               <li 
                 key={channel.id}
-                onClick={() => setCurrentChannel(channel.id)}
+                onClick={() => {
+                  setCurrentChannel(channel.id);
+                  setSelectedUser(null);
+                }}
                 className={`cursor-pointer px-2 py-1 rounded ${
-                  currentChannel === channel.id ? 'bg-gray-700' : 'hover:bg-gray-700'
+                  currentChannel === channel.id && !selectedUser ? 'bg-gray-700' : 'hover:bg-gray-700'
                 }`}
               >
                 # {channel.name}
@@ -186,7 +224,16 @@ export default function ChatPage() {
           <h2 className="text-gray-400 uppercase text-sm mb-2">Direct Messages</h2>
           <ul className="space-y-1">
             {users.map(user => (
-              <li key={user.id} className="cursor-pointer hover:bg-gray-700 px-2 py-1 rounded">
+              <li 
+                key={user.id} 
+                onClick={() => {
+                  setSelectedUser(user.id);
+                  setCurrentChannel('');
+                }}
+                className={`cursor-pointer hover:bg-gray-700 px-2 py-1 rounded ${
+                  selectedUser === user.id ? 'bg-gray-700' : ''
+                }`}
+              >
                 <span className={`w-2 h-2 ${user.online ? 'bg-green-500' : 'bg-gray-500'} rounded-full inline-block mr-2`}></span>
                 {user.full_name}
               </li>
@@ -195,43 +242,48 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col bg-white">
+      {/* Chat Area */}
+      <div className="flex-1 flex flex-col">
         {/* Channel Header */}
-        <div className="border-b px-6 py-2">
-          <h2 className="text-xl font-bold"># {currentChannel}</h2>
-          <p className="text-sm text-gray-500">Channel description goes here</p>
+        <div className="border-b p-3 font-medium">
+          {getCurrentChannelName()}
         </div>
 
-        {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          {messages.map(msg => (
-            <div key={msg.id} className="flex items-start space-x-3">
-              <div className="w-8 h-8 rounded-full bg-gray-300"></div>
-              <div>
-                <div className="flex items-baseline space-x-2">
-                  <span className="font-bold">{msg.user.full_name}</span>
-                  <span className="text-xs text-gray-500">
-                    {new Date(msg.created_at).toLocaleTimeString()}
-                  </span>
+        {/* Messages list */}
+        <div className="flex-1 overflow-y-auto p-4">
+          {messages.map((msg) => (
+            <div key={msg.id} className="mb-4">
+              <div className="flex items-start space-x-3">
+                <div className="w-8 h-8 rounded-full bg-gray-300"></div>
+                <div>
+                  <div className="flex items-baseline space-x-2">
+                    <span className="font-bold">{msg.user.full_name}</span>
+                    <span className="text-xs text-gray-500">
+                      {new Date(msg.created_at).toLocaleTimeString()}
+                    </span>
+                  </div>
+                  <p>{msg.content}</p>
                 </div>
-                <p>{msg.content}</p>
               </div>
             </div>
           ))}
         </div>
 
         {/* Message Input */}
-        <div className="border-t p-4">
-          <form onSubmit={handleSendMessage} className="flex space-x-4">
-            <input
-              type="text"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder={`Message #${currentChannel}`}
-              className="flex-1 border rounded-md px-4 py-2 focus:outline-none focus:border-blue-500"
-            />
-          </form>
+        <div className="p-4 border-t">
+          <input
+            type="text"
+            value={message}
+            onChange={handleMessageChange}
+            placeholder={`Message ${getCurrentChannelName()}`}
+            className="w-full p-2 rounded-md border"
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage(e);
+              }
+            }}
+          />
         </div>
       </div>
     </div>

@@ -21,14 +21,30 @@ export default function SignupPage() {
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
     const fullName = formData.get('name') as string;
+    const username = formData.get('username') as string;
+    const displayName = formData.get('displayName') as string || fullName;
 
     try {
+      // First check if username is available
+      const { data: existingUser, error: checkError } = await supabase
+        .from('users')
+        .select('username')
+        .eq('username', username)
+        .single();
+
+      if (existingUser) {
+        throw new Error('Username is already taken');
+      }
+
+      // Proceed with signup
       const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             full_name: fullName,
+            username,
+            display_name: displayName,
           },
         },
       });
@@ -65,7 +81,26 @@ export default function SignupPage() {
         <form onSubmit={handleSubmit} className="mt-8 space-y-6">
           <div className="rounded-md shadow-sm space-y-4">
             <div>
-              <label htmlFor="name" className="sr-only">
+              <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+                Username
+              </label>
+              <input
+                id="username"
+                name="username"
+                type="text"
+                required
+                minLength={3}
+                pattern="[a-zA-Z0-9_-]+"
+                className="mt-1 block w-full rounded-md border p-2"
+                placeholder="username"
+              />
+              <p className="mt-1 text-sm text-gray-500">
+                Letters, numbers, underscores and hyphens only
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
                 Full Name
               </label>
               <input
@@ -73,12 +108,26 @@ export default function SignupPage() {
                 name="name"
                 type="text"
                 required
-                className="relative block w-full rounded-md border p-2"
+                className="mt-1 block w-full rounded-md border p-2"
                 placeholder="Full Name"
               />
             </div>
+
             <div>
-              <label htmlFor="email" className="sr-only">
+              <label htmlFor="displayName" className="block text-sm font-medium text-gray-700">
+                Display Name (optional)
+              </label>
+              <input
+                id="displayName"
+                name="displayName"
+                type="text"
+                className="mt-1 block w-full rounded-md border p-2"
+                placeholder="How you want to be called"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                 Email address
               </label>
               <input
@@ -86,12 +135,13 @@ export default function SignupPage() {
                 name="email"
                 type="email"
                 required
-                className="relative block w-full rounded-md border p-2"
+                className="mt-1 block w-full rounded-md border p-2"
                 placeholder="Email address"
               />
             </div>
+
             <div>
-              <label htmlFor="password" className="sr-only">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                 Password
               </label>
               <input
@@ -99,8 +149,9 @@ export default function SignupPage() {
                 name="password"
                 type="password"
                 required
-                className="relative block w-full rounded-md border p-2"
-                placeholder="Password"
+                minLength={6}
+                className="mt-1 block w-full rounded-md border p-2"
+                placeholder="Password (min. 6 characters)"
               />
             </div>
           </div>
