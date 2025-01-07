@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
+import { Logo } from '@/components/Logo';
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
@@ -67,8 +68,13 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-8">
-      <div className="w-full max-w-md space-y-8">
+    <div className="flex min-h-screen flex-col items-center justify-center p-4">
+      <div className="mb-8 flex flex-col items-center">
+        <Logo className="w-16 h-16" />
+        <h1 className="mt-4 text-4xl font-bold text-blue-600">ChatGenius</h1>
+      </div>
+
+      <div className="w-full max-w-sm space-y-4">
         <div>
           <h2 className="mt-6 text-center text-3xl font-bold">
             Sign in to your account
@@ -172,6 +178,6 @@ export default function LoginPage() {
           </button>
         </form>
       </div>
-    </main>
+    </div>
   );
 }

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { useUserStore } from '@/store/userStore';
 
 const TIMEZONES = [
   'Anchorage (AKST) -09:00 UTC',
@@ -59,9 +60,10 @@ const STATUS_OPTIONS = [
 ].sort();
 
 export default function ProfilePage() {
+  const avatar = useUserStore((state) => state.avatar);
+  const setAvatar = useUserStore((state) => state.setAvatar);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [avatar, setAvatar] = useState('/defpropic.jpg');
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -78,6 +80,7 @@ export default function ProfilePage() {
   const [showStatusSuggestions, setShowStatusSuggestions] = useState(false);
   const statusRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState('online');
+  
 
   useEffect(() => {
     getProfile();
@@ -119,8 +122,12 @@ export default function ProfilePage() {
         setUsername(data.username || '');
         setDisplayName(data.display_name || '');
         setBio(data.bio || '');
-        setStatusMessage(data.status_message || '');
         setTimezone(data.timezone || '');
+        setStatus(data.status || 'online');
+        if (data.avatar_url) {
+          const avatarUrl = getAvatarUrl(data.avatar_url);
+          setAvatar(avatarUrl);
+        }
       }
     } catch (error) {
       console.error('Error loading user:', error);
@@ -138,6 +145,8 @@ export default function ProfilePage() {
         full_name: fullName,
         display_name: displayName,
         bio: bio,
+        timezone: timezone,
+        status: status,
         email: user.email,
         updated_at: new Date().toISOString()
       };
@@ -184,7 +193,8 @@ export default function ProfilePage() {
 
       if (updateError) throw updateError;
       
-      setAvatar(filePath);
+      const avatarUrl = getAvatarUrl(filePath);
+      setAvatar(avatarUrl);
     } catch (error) {
       console.error('Error uploading avatar:', error);
     } finally {
@@ -207,6 +217,15 @@ export default function ProfilePage() {
   const filteredStatuses = STATUS_OPTIONS.filter(s => 
     s.toLowerCase().includes(statusSearch.toLowerCase())
   );
+
+  async function handleSignOut() {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('Error signing out:', error);
+    } else {
+      router.push('/login');
+    }
+  }
 
   return (
     <main className="min-h-screen p-8">
@@ -356,12 +375,22 @@ export default function ProfilePage() {
                 )}
               </div>
               
-              <button
-                type="submit"
-                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-500"
-              >
-                Save Changes
-              </button>
+              <div className="space-y-4">
+                <button
+                  type="submit"
+                  className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-500"
+                >
+                  Save Changes
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  className="w-full bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-500"
+                >
+                  Sign Out
+                </button>
+              </div>
             </form>
           </div>
         </div>

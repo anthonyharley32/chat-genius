@@ -3,12 +3,19 @@
 import { Logo } from '@/components/Logo';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
+import { useUserStore } from '@/store/userStore';
 
 export function Navbar() {
   const supabase = createClient();
   const router = useRouter();
+  const avatar = useUserStore((state) => state.avatar);
+  const pathname = usePathname();
+
+  if (pathname === '/login' || pathname === '/signup') {
+    return null;
+  }
 
   const handleLogoClick = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -29,7 +36,7 @@ export function Navbar() {
           className="flex items-center hover:opacity-80 transition-opacity"
         >
           <Image
-            src="/defpropic.jpg"
+            src={avatar}
             alt="Profile"
             width={32}
             height={32}
