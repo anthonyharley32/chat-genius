@@ -61,19 +61,19 @@ export default function ProfilePage() {
       if (!user) throw new Error('No user');
 
       const updates = {
-        id: user.id,
         full_name: fullName,
-        username,
         display_name: displayName,
-        bio,
-        status_message: statusMessage,
-        timezone,
-        updated_at: new Date().toISOString(),
+        bio: bio,
+        email: user.email,
+        updated_at: new Date().toISOString()
       };
 
-      const { error } = await supabase.from('users').upsert(updates);
+      const { error } = await supabase
+        .from('users')
+        .update(updates)
+        .eq('id', user.id);
+
       if (error) throw error;
-      
       alert('Profile updated successfully!');
     } catch (error) {
       console.error('Error updating profile:', error);
