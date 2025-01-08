@@ -30,6 +30,8 @@ DROP POLICY IF EXISTS "Avatar upload policy" ON storage.objects;
 DROP POLICY IF EXISTS "Avatar view policy" ON storage.objects;
 DELETE FROM storage.objects WHERE bucket_id = 'avatars';
 DELETE FROM storage.buckets WHERE id = 'avatars';
+DROP POLICY IF EXISTS "Message attachments upload policy" ON storage.objects;
+DROP POLICY IF EXISTS "Message attachments view policy" ON storage.objects;
 
 -- Users table (complete)
 CREATE TABLE public.users (

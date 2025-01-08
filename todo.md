@@ -1,18 +1,19 @@
 ###TODO
 
+-live update message retrieval.
 -Add an add channel button as a drop down from Channel
--Add a way to add a different workspace.
--Add a way to make a thread.
--Add emoji reactions.
--Add a way to add a file.
--Add a way to add a poll.
--Add image upload.
 -Fix new login pp on landing.
 -Update status.
+-Add emoji reactions.
+-Add image upload.
+-Add a way to add a file.
+-Add a way to add a poll.
 -Add search functionality.
+-Add a way to make a thread.
 -Give options from navbar pp hover.
+-Add a way to add a different workspace.
 -fix multiple users on same computer being logged in.
--live update message retrieval.
+
 
 
 ###COMPLETED
