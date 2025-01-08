@@ -21,7 +21,6 @@ export function Navbar() {
   useEffect(() => {
     async function loadUserAvatar() {
       setIsLoading(true);
-      resetAvatar();
       
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -59,10 +58,18 @@ export function Navbar() {
     loadUserAvatar();
   }, [setAvatar, resetAvatar]);
 
-  const handleLogoClick = async (e: React.MouseEvent) => {
+  const handleLogoClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    const { data: { user } } = await supabase.auth.getUser();
-    router.push(user ? '/chat' : '/login');
+    router.push('/chat');
+  };
+
+  const handleLogout = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    const { error } = await supabase.auth.signOut();
+    resetAvatar();
+    if (!error) {
+      router.push('/login');
+    }
   };
 
   if (pathname === '/login' || pathname === '/signup') {
@@ -77,20 +84,22 @@ export function Navbar() {
           <span className="text-2xl font-bold text-blue-600">ChatGenius</span>
         </a>
 
-        <Link 
-          href="/profile" 
-          className="flex items-center hover:opacity-80 transition-opacity"
-        >
-          {!isLoading && (
-            <Image
-              src={avatar}
-              alt="Profile"
-              width={32}
-              height={32}
-              className="rounded-full"
-            />
-          )}
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link 
+            href="/profile"
+            className="hover:opacity-80 transition-opacity"
+          >
+            {!isLoading && (
+              <Image
+                src={avatar}
+                alt="Profile"
+                width={32}
+                height={32}
+                className="rounded-full"
+              />
+            )}
+          </Link>
+        </div>
       </div>
     </nav>
   );

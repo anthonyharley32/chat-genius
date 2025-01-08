@@ -17,14 +17,15 @@ export function useUsers() {
       const { data: realUsers, error } = await supabase
         .from('users')
         .select('id, full_name, online')
-        .order('full_name');
+        .order('full_name')
+        .returns<User[]>();
 
       if (error) {
         console.error('Error fetching users:', error);
         return;
       }
 
-      setUsers(realUsers);
+      setUsers(realUsers || []);
     }
 
     getUsers();
@@ -32,8 +33,15 @@ export function useUsers() {
     // Subscribe to changes
     const channel = supabase
       .channel('users_channel')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, 
-        () => getUsers())
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'users',
+          filter: 'online is not null'
+        }, 
+        () => getUsers()
+      )
       .subscribe();
 
     return () => {

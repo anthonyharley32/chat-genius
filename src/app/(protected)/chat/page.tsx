@@ -102,8 +102,7 @@ export default function ChatPage() {
     if (selectedUser) {
       query = query
         .eq('is_direct_message', true)
-        .or(`user_id.eq.${user.id},receiver_id.eq.${user.id}`)
-        .or(`user_id.eq.${selectedUser},receiver_id.eq.${selectedUser}`);
+        .or(`and(user_id.eq.${user.id},receiver_id.eq.${selectedUser}),and(user_id.eq.${selectedUser},receiver_id.eq.${user.id})`);
     } else if (currentChannel) {
       query = query
         .eq('channel_id', currentChannel)
