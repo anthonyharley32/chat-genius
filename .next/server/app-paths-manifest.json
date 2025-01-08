@@ -1,5 +1,0 @@
-{
-  "/(protected)/chat/page": "app/(protected)/chat/page.js",
-  "/(protected)/profile/page": "app/(protected)/profile/page.js",
-  "/(auth)/login/page": "app/(auth)/login/page.js"
-}
