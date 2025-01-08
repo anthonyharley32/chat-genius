@@ -16,10 +16,13 @@ export function Navbar() {
   const pathname = usePathname();
   const avatar = useUserStore((state) => state.avatar);
   const setAvatar = useUserStore((state) => state.setAvatar);
+  const resetAvatar = useUserStore((state) => state.resetAvatar);
 
   useEffect(() => {
     async function loadUserAvatar() {
       setIsLoading(true);
+      resetAvatar();
+      
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { data, error } = await supabase
@@ -29,18 +32,32 @@ export function Navbar() {
           .single();
         
         if (data?.avatar_url) {
-          const avatarUrl = supabase.storage
-            .from('avatars')
-            .getPublicUrl(data.avatar_url)
-            .data.publicUrl;
-          setAvatar(avatarUrl);
+          try {
+            console.log('Raw avatar_url from DB:', data.avatar_url);
+            if (data.avatar_url === 'defpropic.jpg' || data.avatar_url === '/defpropic.jpg') {
+              setAvatar('/defpropic.jpg');
+            } else {
+              const avatarUrl = supabase.storage
+                .from('avatars')
+                .getPublicUrl(data.avatar_url)
+                .data.publicUrl;
+              console.log('Generated Avatar URL:', avatarUrl);
+              setAvatar(avatarUrl);
+            }
+          } catch (error) {
+            console.error('Error getting avatar URL:', error);
+            setAvatar('/defpropic.jpg');
+          }
+        } else {
+          console.log('No avatar_url, using default');
+          setAvatar('/defpropic.jpg');
         }
       }
       setIsLoading(false);
     }
 
     loadUserAvatar();
-  }, [setAvatar]);
+  }, [setAvatar, resetAvatar]);
 
   const handleLogoClick = async (e: React.MouseEvent) => {
     e.preventDefault();

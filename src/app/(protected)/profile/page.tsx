@@ -126,11 +126,17 @@ export default function ProfilePage() {
         setStatus(data.status || 'online');
         
         if (data.avatar_url) {
-          const avatarUrl = supabase.storage
-            .from('avatars')
-            .getPublicUrl(data.avatar_url)
-            .data.publicUrl;
-          setAvatar(avatarUrl);
+          if (data.avatar_url === 'defpropic.jpg' || data.avatar_url === '/defpropic.jpg') {
+            setAvatar('/defpropic.jpg');
+          } else {
+            const avatarUrl = supabase.storage
+              .from('avatars')
+              .getPublicUrl(data.avatar_url)
+              .data.publicUrl;
+            setAvatar(avatarUrl);
+          }
+        } else {
+          setAvatar('/defpropic.jpg');
         }
       }
     } catch (error) {
@@ -221,7 +227,12 @@ export default function ProfilePage() {
   }
 
   const getAvatarUrl = (path: string) => {
-    if (path.startsWith('http') || path.startsWith('/')) return path;
+    if (path === 'defpropic.jpg' || path === '/defpropic.jpg') {
+      return '/defpropic.jpg';
+    }
+    if (path.startsWith('http') || path.startsWith('/')) {
+      return path;
+    }
     return supabase.storage
       .from('avatars')
       .getPublicUrl(path)

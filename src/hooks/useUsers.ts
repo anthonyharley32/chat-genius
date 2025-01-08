@@ -24,17 +24,7 @@ export function useUsers() {
         return;
       }
 
-      // If we have fewer than 2 real users, add example users
-      if (realUsers.length < 2) {
-        const exampleUsers = [
-          { id: 'example1', full_name: 'Austen Allred', online: true },
-          { id: 'example2', full_name: 'Joe Liemandt', online: false }
-        ].slice(0, 2 - realUsers.length);
-
-        setUsers([...realUsers, ...exampleUsers]);
-      } else {
-        setUsers(realUsers);
-      }
+      setUsers(realUsers);
     }
 
     getUsers();

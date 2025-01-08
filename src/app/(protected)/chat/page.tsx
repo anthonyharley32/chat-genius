@@ -30,11 +30,20 @@ export default function ChatPage() {
   const supabase = createClient();
 
   const getAvatarUrl = (path: string) => {
-    if (!path || path === 'defpropic.jpg') return '/defpropic.jpg';
-    return supabase.storage
-      .from('avatars')
-      .getPublicUrl(path)
-      .data.publicUrl;
+    // If no path is provided or it's the default picture name (with or without slash), return the default picture
+    if (!path || path === 'defpropic.jpg' || path === '/defpropic.jpg') {
+      return '/defpropic.jpg';
+    }
+    
+    // Try to get the user's specific profile picture from storage
+    try {
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(path);
+      return publicUrl || '/defpropic.jpg';
+    } catch (error) {
+      return '/defpropic.jpg';
+    }
   };
 
   // Load channels from database
@@ -61,8 +70,14 @@ export default function ChatPage() {
   }, []);
 
   const loadMessages = useCallback(async () => {
+    console.log('Loading messages...');
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    console.log('Current user:', user);
+
+    if (!user) {
+      console.log('No user found');
+      return;
+    }
 
     if (!selectedUser && !currentChannel) {
       console.log('No channel or user selected');
@@ -80,6 +95,9 @@ export default function ChatPage() {
         )
       `)
       .order('created_at', { ascending: true });
+
+    console.log('Selected user:', selectedUser);
+    console.log('Current channel:', currentChannel);
 
     if (selectedUser) {
       query = query
