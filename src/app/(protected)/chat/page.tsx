@@ -1,7 +1,7 @@
 'use client';
 
 import { useUsers } from '@/hooks/useUsers';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react';
 import { createClient } from '@/utils/supabase/client';
 
 type Message = {
@@ -30,22 +30,55 @@ export default function ChatPage() {
   const supabase = createClient();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const getAvatarUrl = (path: string) => {
-    // If no path is provided or it's the default picture name (with or without slash), return the default picture
-    if (!path || path === 'defpropic.jpg' || path === '/defpropic.jpg') {
+  // Add a URL cache at the component level
+  const avatarUrlCache = useMemo(() => new Map<string, string>(), []);
+
+  const getAvatarUrl = useCallback((path: string) => {
+    // Check cache first
+    if (avatarUrlCache.has(path)) {
+      return avatarUrlCache.get(path);
+    }
+
+    // If no path is provided or it's null/undefined, cache and return default picture
+    if (!path) {
+      avatarUrlCache.set(path, '/defpropic.jpg');
+      return '/defpropic.jpg';
+    }
+
+    // If it's already a full URL, cache and return it
+    if (path.startsWith('http')) {
+      avatarUrlCache.set(path, path);
+      return path;
+    }
+
+    // If it's just the default picture name, cache and return the local path
+    if (path === 'defpropic.jpg' || path === '/defpropic.jpg') {
+      avatarUrlCache.set(path, '/defpropic.jpg');
       return '/defpropic.jpg';
     }
     
-    // Try to get the user's specific profile picture from storage
-    try {
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(path);
-      return publicUrl || '/defpropic.jpg';
-    } catch (error) {
-      return '/defpropic.jpg';
-    }
-  };
+    // Get the public URL from Supabase storage
+    const { data } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(path);
+
+    const url = data?.publicUrl || '/defpropic.jpg';
+    avatarUrlCache.set(path, url);
+    return url;
+  }, [supabase, avatarUrlCache]);
+
+  // Create a memoized avatar component
+  const MessageAvatar = memo(({ avatarUrl }: { avatarUrl: string }) => {
+    const url = getAvatarUrl(avatarUrl);
+    return (
+      <div 
+        className="w-8 h-8 rounded-full bg-gray-300 bg-cover bg-center"
+        style={{
+          backgroundImage: `url(${url})`
+        }}
+      />
+    );
+  });
 
   // Load channels from database
   useEffect(() => {
@@ -329,20 +362,13 @@ export default function ChatPage() {
         </div>
 
         {/* Messages list */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto px-4 pt-4">
           {messages.map((msg) => (
             <div key={msg.id} className="mb-4">
               <div className="flex items-start space-x-3">
-                <div 
-                  className="w-8 h-8 rounded-full bg-gray-300"
-                  style={{
-                    backgroundImage: msg.user?.avatar_url ? 
-                      `url(${getAvatarUrl(msg.user.avatar_url)})` : 
-                      'none',
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center'
-                  }}
-                ></div>
+                <MessageAvatar 
+                  avatarUrl={msg.user?.avatar_url || '/defpropic.jpg'} 
+                />
                 <div>
                   <div className="flex items-baseline space-x-2">
                     <span className="font-bold">{msg.user?.full_name || 'Unknown User'}</span>
