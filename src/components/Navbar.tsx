@@ -90,13 +90,15 @@ export function Navbar() {
             className="hover:opacity-80 transition-opacity"
           >
             {!isLoading && (
-              <Image
-                src={avatar}
-                alt="Profile"
-                width={32}
-                height={32}
-                className="rounded-full"
-              />
+              <div className="w-8 h-8">
+                <Image
+                  src={avatar}
+                  alt="Profile"
+                  width={32}
+                  height={32}
+                  className="rounded-full aspect-square object-cover"
+                />
+              </div>
             )}
           </Link>
         </div>

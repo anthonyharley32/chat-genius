@@ -80,6 +80,12 @@ export default function ProfilePage() {
   const statusRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState('online');
   const [isLoading, setIsLoading] = useState(true);
+  const [isDraggingEdit, setIsDraggingEdit] = useState(false);
+  const [isDraggingDelete, setIsDraggingDelete] = useState(false);
+  const [editPosition, setEditPosition] = useState({ x: -2, y: -2 });
+  const [deletePosition, setDeletePosition] = useState({ x: 2, y: -2 });
+  const [imagePosition, setImagePosition] = useState({ x: 50, y: 50 });
+  const [isDraggingImage, setIsDraggingImage] = useState(false);
 
   useEffect(() => {
     getProfile();
@@ -226,6 +232,28 @@ export default function ProfilePage() {
     }
   }
 
+  async function removeAvatar() {
+    try {
+      setUploading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No user');
+
+      // Update the user record to use default avatar
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ avatar_url: 'defpropic.jpg' })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+      
+      setAvatar('/defpropic.jpg');
+    } catch (error) {
+      console.error('Error removing avatar:', error);
+    } finally {
+      setUploading(false);
+    }
+  }
+
   const getAvatarUrl = (path: string) => {
     if (path === 'defpropic.jpg' || path === '/defpropic.jpg') {
       return '/defpropic.jpg';
@@ -247,6 +275,35 @@ export default function ProfilePage() {
     s.toLowerCase().includes(statusSearch.toLowerCase())
   );
 
+  const handleDrag = (
+    e: React.MouseEvent,
+    setter: (pos: { x: number, y: number }) => void,
+    setDragging: (dragging: boolean) => void
+  ) => {
+    if (e.currentTarget instanceof HTMLElement) {
+      const rect = e.currentTarget.parentElement?.getBoundingClientRect();
+      if (rect) {
+        const x = ((e.clientX - rect.left) / rect.width) * 100;
+        const y = ((e.clientY - rect.top) / rect.height) * 100;
+        setter({ x: Math.max(-10, Math.min(110, x)), y: Math.max(-10, Math.min(110, y)) });
+      }
+    }
+  };
+
+  const handleImageDrag = (e: React.MouseEvent) => {
+    if (!isDraggingImage) return;
+    
+    if (e.currentTarget instanceof HTMLElement) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width) * 100;
+      const y = ((e.clientY - rect.top) / rect.height) * 100;
+      setImagePosition({
+        x: Math.max(0, Math.min(100, x)),
+        y: Math.max(0, Math.min(100, y))
+      });
+    }
+  };
+
   return (
     <main className="min-h-screen p-8">
       <div className="max-w-2xl mx-auto">
@@ -259,10 +316,10 @@ export default function ProfilePage() {
                   alt="Profile"
                   width={100}
                   height={100}
-                  className="rounded-full"
+                  className="rounded-full aspect-square object-cover"
                 />
               )}
-              <label className="absolute bottom-0 right-0 bg-blue-600 rounded-full p-2 cursor-pointer hover:bg-blue-500">
+              <label className="absolute -bottom-2 -right-2 w-6 h-6 bg-blue-600 rounded-full cursor-pointer hover:bg-blue-500 flex items-center justify-center">
                 <input
                   type="file"
                   accept="image/*"
@@ -270,10 +327,21 @@ export default function ProfilePage() {
                   onChange={uploadAvatar}
                   disabled={uploading}
                 />
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" viewBox="0 0 20 20" fill="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-white" viewBox="0 0 20 20" fill="currentColor">
                   <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
                 </svg>
               </label>
+              {avatar !== '/defpropic.jpg' && (
+                <button
+                  onClick={removeAvatar}
+                  disabled={uploading}
+                  className="absolute -bottom-2 -left-2 w-6 h-6 bg-gray-400 rounded-full cursor-pointer hover:bg-gray-500 flex items-center justify-center"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-white" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              )}
             </div>
             <div>
               <h1 className="text-2xl font-bold">{displayName || fullName || 'Loading...'}</h1>
