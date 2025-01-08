@@ -14,6 +14,7 @@ type Message = {
   is_direct_message: boolean;
   receiver_id?: string;
   created_at: string;
+  image_url?: string;
   users?: { full_name: string };
   user: {
     id: string;
@@ -187,68 +188,6 @@ export default function ChatPage() {
     setupSubscription();
   }, [currentChannel, selectedUser, loadMessages]);
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!message.trim()) return;
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const messageData = selectedUser
-        ? {
-            content: message.trim(),
-            user_id: user.id,
-            receiver_id: selectedUser,
-            is_direct_message: true,
-            image_url: imageUrl || null
-          }
-        : {
-            content: message.trim(),
-            channel_id: currentChannel,
-            user_id: user.id,
-            is_direct_message: false,
-            image_url: imageUrl || null
-          };
-
-      const { data, error } = await supabase
-        .from('messages')
-        .insert([messageData])
-        .select(`
-          *,
-          user:users!messages_user_id_fkey (
-            id,
-            full_name,
-            avatar_url
-          )
-        `)
-        .single();
-
-      if (error) throw error;
-      
-      // Immediately add the new message to the state
-      if (data) {
-        const newMessage: Message = {
-          ...data,
-          user: data.user || {
-            id: user.id,
-            full_name: 'Unknown User',
-            avatar_url: 'defpropic.jpg'
-          }
-        };
-        setMessages(prev => [...prev, newMessage]);
-      }
-      
-      setMessage('');
-    } catch (error) {
-      console.error('Error sending message:', error);
-    }
-  };
-
-  const handleMessageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setMessage(e.target.value);
-  };
-
   // Helper function to get current channel name
   const getCurrentChannelName = () => {
     if (selectedUser) {
@@ -345,6 +284,13 @@ export default function ChatPage() {
                     </span>
                   </div>
                   <p>{msg.content}</p>
+                  {msg.image_url && (
+                    <img 
+                      src={msg.image_url} 
+                      alt="Message attachment" 
+                      className="mt-2 max-w-sm rounded-lg"
+                    />
+                  )}
                 </div>
               </div>
             </div>
@@ -374,17 +320,25 @@ export default function ChatPage() {
         */}
         
         {/* New MessageInput component */}
-        <MessageInput onSendMessage={async (content) => {
-          console.log('Attempting to send message:', content);
-          console.log('Current channel:', currentChannel);
-          
+        <MessageInput onSendMessage={async (content, file)=> {
           try {
             const { data: { user } } = await supabase.auth.getUser();
-            if (!user) {
-              console.log('No user found');
-              return;
+            if (!user) return;
+
+            let imageUrl = null;
+            if (file) {
+              const fileExt = file.name.split('.').pop();
+              const fileName = `${Math.random()}.${fileExt}`;
+              const { error: uploadError } = await supabase.storage
+                .from('message-attachments')
+                .upload(fileName, file);
+
+              if (uploadError) throw uploadError;
+              
+              imageUrl = supabase.storage
+                .from('message-attachments')
+                .getPublicUrl(fileName).data.publicUrl;
             }
-            console.log('User:', user);
 
             const messageData = selectedUser
               ? {
@@ -392,17 +346,15 @@ export default function ChatPage() {
                   user_id: user.id,
                   receiver_id: selectedUser,
                   is_direct_message: true,
-                  image_url: imageUrl || null
+                  image_url: imageUrl
                 }
               : {
                   content: content.trim(),
                   channel_id: currentChannel,
                   user_id: user.id,
                   is_direct_message: false,
-                  image_url: imageUrl || null
+                  image_url: imageUrl
                 };
-
-            console.log('Message data to send:', messageData);
 
             const { data, error } = await supabase
               .from('messages')
