@@ -1,4 +1,4 @@
-// File: /Users/gauntletAI/Desktop/Gauntlet/chat-genius/src/app/(protected)/chat/page.tsx
+// File: /Users/gauntletAI/Desktop/Gauntlet/cg3/chat-genius/src/app/(protected)/chat/page.tsx
 import * as entry from '../../../../../src/app/(protected)/chat/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

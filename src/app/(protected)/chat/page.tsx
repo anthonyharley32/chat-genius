@@ -8,15 +8,15 @@ type Message = {
   id: string;
   content: string;
   user_id: string;
-  channel?: string;
+  channel_id?: string;
   is_direct_message: boolean;
   receiver_id?: string;
   created_at: string;
-  users: {
-    full_name: string;
-  };
+  users?: { full_name: string };
   user: {
+    id: string;
     full_name: string;
+    avatar_url: string;
   };
 };
 
@@ -28,6 +28,14 @@ export default function ChatPage() {
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const users = useUsers();
   const supabase = createClient();
+
+  const getAvatarUrl = (path: string) => {
+    if (!path || path === 'defpropic.jpg') return '/defpropic.jpg';
+    return supabase.storage
+      .from('avatars')
+      .getPublicUrl(path)
+      .data.publicUrl;
+  };
 
   // Load channels from database
   useEffect(() => {
@@ -77,9 +85,18 @@ export default function ChatPage() {
             .single();
 
           const newMessage = {
-            ...payload.new,
-            users: { full_name: userData?.full_name || 'Unknown User' },
-            user: { full_name: userData?.full_name || 'Unknown User' }
+            id: payload.new.id,
+            content: payload.new.content,
+            user_id: payload.new.user_id,
+            channel_id: payload.new.channel_id,
+            is_direct_message: payload.new.is_direct_message,
+            receiver_id: payload.new.receiver_id,
+            created_at: payload.new.created_at,
+            user: { 
+              id: payload.new.user_id,
+              full_name: userData?.full_name || 'Unknown User',
+              avatar_url: ''
+            }
           } as Message;
           
           // Only add message if it belongs to current conversation
@@ -103,12 +120,17 @@ export default function ChatPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    if (!selectedUser && !currentChannel) {
+      console.log('No channel or user selected');
+      return;
+    }
+
     let query = supabase
       .from('messages')
       .select(`
         *,
-        users!messages_user_id_fkey (
-          username,
+        user:users!messages_user_id_fkey(
+          id,
           full_name,
           avatar_url
         )
@@ -116,19 +138,19 @@ export default function ChatPage() {
       .order('created_at', { ascending: true });
 
     if (selectedUser) {
-      // Load DMs
       query = query
         .eq('is_direct_message', true)
         .or(`user_id.eq.${user.id},receiver_id.eq.${user.id}`)
         .or(`user_id.eq.${selectedUser},receiver_id.eq.${selectedUser}`);
-    } else {
-      // Load channel messages
+    } else if (currentChannel) {
       query = query
         .eq('channel_id', currentChannel)
         .eq('is_direct_message', false);
     }
 
     const { data, error } = await query;
+    console.log('Messages data:', data);
+    console.log('Query error:', error);
 
     if (error) {
       console.error('Error loading messages:', error);
@@ -137,8 +159,7 @@ export default function ChatPage() {
 
     setMessages((data || []).map(msg => ({
       ...msg,
-      users: { full_name: msg.sender?.full_name || 'Unknown User' },
-      user: { full_name: msg.sender?.full_name || 'Unknown User' }
+      user: msg.user || { full_name: 'Unknown User' }
     })));
   };
 
@@ -188,6 +209,8 @@ export default function ChatPage() {
     const channel = channels.find(c => c.id === currentChannel);
     return channel ? `#${channel.name}` : '';
   };
+
+  console.log('Current messages state:', messages);
 
   return (
     <div className="flex h-[calc(100vh-3rem)]">
@@ -254,10 +277,19 @@ export default function ChatPage() {
           {messages.map((msg) => (
             <div key={msg.id} className="mb-4">
               <div className="flex items-start space-x-3">
-                <div className="w-8 h-8 rounded-full bg-gray-300"></div>
+                <div 
+                  className="w-8 h-8 rounded-full bg-gray-300"
+                  style={{
+                    backgroundImage: msg.user?.avatar_url ? 
+                      `url(${getAvatarUrl(msg.user.avatar_url)})` : 
+                      'none',
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center'
+                  }}
+                ></div>
                 <div>
                   <div className="flex items-baseline space-x-2">
-                    <span className="font-bold">{msg.user.full_name}</span>
+                    <span className="font-bold">{msg.user?.full_name || 'Unknown User'}</span>
                     <span className="text-xs text-gray-500">
                       {new Date(msg.created_at).toLocaleTimeString()}
                     </span>
