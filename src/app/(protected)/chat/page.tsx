@@ -1,7 +1,7 @@
 'use client';
 
 import { useUsers } from '@/hooks/useUsers';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/utils/supabase/client';
 
 type Message = {
@@ -60,63 +60,7 @@ export default function ChatPage() {
     loadChannels();
   }, []);
 
-  useEffect(() => {
-    loadMessages();
-    
-    // Subscribe to messages
-    const channel = supabase
-      .channel(`messages:${selectedUser || currentChannel}`)
-      .on('postgres_changes', 
-        { 
-          event: 'INSERT', 
-          schema: 'public', 
-          table: 'messages',
-          filter: selectedUser 
-            ? `is_direct_message=eq.true`
-            : `channel=eq.${currentChannel}`
-        }, 
-        async (payload) => {
-          console.log('New message received:', payload);
-          
-          const { data: userData } = await supabase
-            .from('users')
-            .select('full_name')
-            .eq('id', payload.new.user_id)
-            .single();
-
-          const newMessage = {
-            id: payload.new.id,
-            content: payload.new.content,
-            user_id: payload.new.user_id,
-            channel_id: payload.new.channel_id,
-            is_direct_message: payload.new.is_direct_message,
-            receiver_id: payload.new.receiver_id,
-            created_at: payload.new.created_at,
-            user: { 
-              id: payload.new.user_id,
-              full_name: userData?.full_name || 'Unknown User',
-              avatar_url: ''
-            }
-          } as Message;
-          
-          // Only add message if it belongs to current conversation
-          if (
-            (!selectedUser && !payload.new.is_direct_message) || 
-            (selectedUser && payload.new.is_direct_message && 
-              (payload.new.receiver_id === selectedUser || payload.new.user_id === selectedUser))
-          ) {
-            setMessages(prev => [...prev, newMessage]);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [currentChannel, selectedUser]);
-
-  const loadMessages = async () => {
+  const loadMessages = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
@@ -161,35 +105,121 @@ export default function ChatPage() {
       ...msg,
       user: msg.user || { full_name: 'Unknown User' }
     })));
-  };
+  }, [currentChannel, selectedUser, supabase]);
+
+  useEffect(() => {
+    const setupSubscription = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      loadMessages();
+      
+      const channel = supabase
+        .channel(`messages:${selectedUser || currentChannel}`)
+        .on('postgres_changes', 
+          { 
+            event: 'INSERT', 
+            schema: 'public', 
+            table: 'messages'
+          }, 
+          async (payload) => {
+            // Check if message belongs to current conversation
+            if (selectedUser) {
+              if (!payload.new.is_direct_message ||
+                  (payload.new.user_id !== selectedUser && payload.new.user_id !== user.id) ||
+                  (payload.new.receiver_id !== selectedUser && payload.new.receiver_id !== user.id)) {
+                return;
+              }
+            } else {
+              if (payload.new.is_direct_message || payload.new.channel_id !== currentChannel) {
+                return;
+              }
+            }
+            
+            const { data: userData } = await supabase
+              .from('users')
+              .select('full_name, avatar_url')
+              .eq('id', payload.new.user_id)
+              .single();
+
+            const newMessage: Message = {
+              id: payload.new.id,
+              content: payload.new.content,
+              user_id: payload.new.user_id,
+              channel_id: payload.new.channel_id,
+              is_direct_message: payload.new.is_direct_message,
+              receiver_id: payload.new.receiver_id,
+              created_at: payload.new.created_at,
+              user: { 
+                id: payload.new.user_id,
+                full_name: userData?.full_name || 'Unknown User',
+                avatar_url: userData?.avatar_url || 'defpropic.jpg'
+              }
+            };
+
+            setMessages(prev => [...prev, newMessage]);
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    };
+
+    setupSubscription();
+  }, [currentChannel, selectedUser, loadMessages]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
 
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) return;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
       const messageData = selectedUser
         ? {
             content: message.trim(),
-            user_id: userData.user.id,
+            user_id: user.id,
             receiver_id: selectedUser,
             is_direct_message: true
           }
         : {
             content: message.trim(),
             channel_id: currentChannel,
-            user_id: userData.user.id,
+            user_id: user.id,
             is_direct_message: false
           };
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('messages')
-        .insert([messageData]);
+        .insert([messageData])
+        .select(`
+          *,
+          user:users!messages_user_id_fkey (
+            id,
+            full_name,
+            avatar_url
+          )
+        `)
+        .single();
 
       if (error) throw error;
+      
+      // Immediately add the new message to the state
+      if (data) {
+        const newMessage: Message = {
+          ...data,
+          user: data.user || {
+            id: user.id,
+            full_name: 'Unknown User',
+            avatar_url: 'defpropic.jpg'
+          }
+        };
+        setMessages(prev => [...prev, newMessage]);
+      }
+      
       setMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
