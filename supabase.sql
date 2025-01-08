@@ -4,6 +4,8 @@ DROP POLICY IF EXISTS "Avatar upload policy" ON storage.objects;
 DROP POLICY IF EXISTS "Avatar view policy" ON storage.objects;
 DELETE FROM storage.objects WHERE bucket_id = 'avatars';
 DELETE FROM storage.buckets WHERE id = 'avatars';
+DELETE FROM storage.objects WHERE bucket_id = 'message-attachments';
+DELETE FROM storage.buckets WHERE id = 'message-attachments';
 
 
 -- Drop existing triggers and functions
@@ -104,6 +106,7 @@ CREATE TABLE public.messages (
   edited_at timestamptz,
   is_pinned boolean default false,
   has_attachments boolean default false,
+  image_url text,
   created_at timestamptz default now(),
   updated_at timestamptz default now(),
   constraint valid_message_type check (
@@ -246,3 +249,18 @@ create policy "Avatar upload policy"
 create policy "Avatar view policy"
   on storage.objects for select
   using ( bucket_id = 'avatars' );
+
+-- Create storage bucket and policies for message attachments
+insert into storage.buckets (id, name, public) 
+values ('message-attachments', 'message-attachments', true);
+
+create policy "Message attachment upload policy"
+  on storage.objects for insert
+  with check (
+    bucket_id = 'message-attachments' 
+    and auth.role() = 'authenticated'
+  );
+
+create policy "Message attachment view policy"
+  on storage.objects for select
+  using ( bucket_id = 'message-attachments' );

@@ -8,6 +8,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import { useUserStore } from '@/store/userStore';
+import { useAvatarUrl } from '@/hooks/useAvatarUrl';
 
 export function Navbar() {
   const [isLoading, setIsLoading] = useState(true);
@@ -17,6 +18,7 @@ export function Navbar() {
   const avatar = useUserStore((state) => state.avatar);
   const setAvatar = useUserStore((state) => state.setAvatar);
   const resetAvatar = useUserStore((state) => state.resetAvatar);
+  const getAvatarUrl = useAvatarUrl();
 
   useEffect(() => {
     async function loadUserAvatar() {
@@ -36,12 +38,9 @@ export function Navbar() {
             if (data.avatar_url === 'defpropic.jpg' || data.avatar_url === '/defpropic.jpg') {
               setAvatar('/defpropic.jpg');
             } else {
-              const avatarUrl = supabase.storage
-                .from('avatars')
-                .getPublicUrl(data.avatar_url)
-                .data.publicUrl;
+              const avatarUrl = getAvatarUrl(data.avatar_url);
               console.log('Generated Avatar URL:', avatarUrl);
-              setAvatar(avatarUrl);
+              setAvatar(avatarUrl || '/defpropic.jpg');
             }
           } catch (error) {
             console.error('Error getting avatar URL:', error);
@@ -56,7 +55,7 @@ export function Navbar() {
     }
 
     loadUserAvatar();
-  }, [setAvatar, resetAvatar]);
+  }, [setAvatar, resetAvatar, getAvatarUrl]);
 
   const handleLogoClick = (e: React.MouseEvent) => {
     e.preventDefault();

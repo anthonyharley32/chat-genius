@@ -19,7 +19,7 @@
     "date-fns": "^3.6.0",
     "firebase": "^10.13.0",
     "framer-motion": "^11.3.31",
-    "lucide-react": "^0.436.0",
+    "lucide-react": "^0.469.0",
     "nanoid": "^3.3.8",
     "next": "^14.2.22",
     "react": "^18",

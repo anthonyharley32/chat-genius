@@ -3,6 +3,8 @@
 import { useUsers } from '@/hooks/useUsers';
 import { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react';
 import { createClient } from '@/utils/supabase/client';
+import { useAvatarUrl } from '@/hooks/useAvatarUrl';
+import { MessageInput } from '@/components/MessageInput';
 
 type Message = {
   id: string;
@@ -29,43 +31,7 @@ export default function ChatPage() {
   const users = useUsers();
   const supabase = createClient();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Add a URL cache at the component level
-  const avatarUrlCache = useMemo(() => new Map<string, string>(), []);
-
-  const getAvatarUrl = useCallback((path: string) => {
-    // Check cache first
-    if (avatarUrlCache.has(path)) {
-      return avatarUrlCache.get(path);
-    }
-
-    // If no path is provided or it's null/undefined, cache and return default picture
-    if (!path) {
-      avatarUrlCache.set(path, '/defpropic.jpg');
-      return '/defpropic.jpg';
-    }
-
-    // If it's already a full URL, cache and return it
-    if (path.startsWith('http')) {
-      avatarUrlCache.set(path, path);
-      return path;
-    }
-
-    // If it's just the default picture name, cache and return the local path
-    if (path === 'defpropic.jpg' || path === '/defpropic.jpg') {
-      avatarUrlCache.set(path, '/defpropic.jpg');
-      return '/defpropic.jpg';
-    }
-    
-    // Get the public URL from Supabase storage
-    const { data } = supabase.storage
-      .from('avatars')
-      .getPublicUrl(path);
-
-    const url = data?.publicUrl || '/defpropic.jpg';
-    avatarUrlCache.set(path, url);
-    return url;
-  }, [supabase, avatarUrlCache]);
+  const getAvatarUrl = useAvatarUrl();
 
   // Create a memoized avatar component
   const MessageAvatar = memo(({ avatarUrl }: { avatarUrl: string }) => {
@@ -234,13 +200,15 @@ export default function ChatPage() {
             content: message.trim(),
             user_id: user.id,
             receiver_id: selectedUser,
-            is_direct_message: true
+            is_direct_message: true,
+            image_url: imageUrl || null
           }
         : {
             content: message.trim(),
             channel_id: currentChannel,
             user_id: user.id,
-            is_direct_message: false
+            is_direct_message: false,
+            image_url: imageUrl || null
           };
 
       const { data, error } = await supabase
@@ -385,6 +353,7 @@ export default function ChatPage() {
         </div>
 
         {/* Message Input */}
+        {/* Original input - commented out
         <div className="p-4 border-t">
           <form onSubmit={handleSendMessage} className="flex gap-2">
             <input
@@ -402,6 +371,66 @@ export default function ChatPage() {
             </button>
           </form>
         </div>
+        */}
+        
+        {/* New MessageInput component */}
+        <MessageInput onSendMessage={async (content) => {
+          console.log('Attempting to send message:', content);
+          console.log('Current channel:', currentChannel);
+          
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+              console.log('No user found');
+              return;
+            }
+            console.log('User:', user);
+
+            const messageData = selectedUser
+              ? {
+                  content: content.trim(),
+                  user_id: user.id,
+                  receiver_id: selectedUser,
+                  is_direct_message: true,
+                  image_url: imageUrl || null
+                }
+              : {
+                  content: content.trim(),
+                  channel_id: currentChannel,
+                  user_id: user.id,
+                  is_direct_message: false,
+                  image_url: imageUrl || null
+                };
+
+            console.log('Message data to send:', messageData);
+
+            const { data, error } = await supabase
+              .from('messages')
+              .insert([messageData])
+              .select(`
+                *,
+                user:users!messages_user_id_fkey(
+                  id,
+                  full_name,
+                  avatar_url
+                )
+              `);
+
+            if (error) {
+              console.error('Database error:', error);
+              throw error;
+            }
+            
+            console.log('Message sent successfully:', data);
+            
+            // Add the new message to the messages state
+            if (data && data[0]) {
+              setMessages(prev => [...prev, data[0]]);
+            }
+          } catch (error) {
+            console.error('Error sending message:', error);
+          }
+        }} />
       </div>
     </div>
   );
