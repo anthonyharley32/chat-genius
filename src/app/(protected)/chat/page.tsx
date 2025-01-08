@@ -283,13 +283,15 @@ export default function ChatPage() {
                       {new Date(msg.created_at).toLocaleTimeString()}
                     </span>
                   </div>
-                  <p>{msg.content}</p>
                   {msg.image_url && (
                     <img 
                       src={msg.image_url} 
                       alt="Message attachment" 
                       className="mt-2 max-w-sm rounded-lg"
                     />
+                  )}
+                  {msg.content && (
+                    <p className="mt-2">{msg.content}</p>
                   )}
                 </div>
               </div>
