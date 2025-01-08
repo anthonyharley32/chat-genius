@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { useAvatarUrl } from '@/hooks/useAvatarUrl';
 import { MessageInput } from '@/components/MessageInput';
+import Sidebar from '@/components/Sidebar';
 
 type Message = {
   id: string;
@@ -26,7 +27,7 @@ type Message = {
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [message, setMessage] = useState('');
-  const [channels, setChannels] = useState<{id: string, name: string}[]>([]);
+  const [channels, setChannels] = useState<any[]>([]);
   const [currentChannel, setCurrentChannel] = useState<string>('');
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const users = useUsers();
@@ -47,27 +48,33 @@ export default function ChatPage() {
     );
   });
 
-  // Load channels from database
+  // Fetch channels on component mount
   useEffect(() => {
-    async function loadChannels() {
+    async function fetchChannels() {
       const { data: channelsData, error } = await supabase
         .from('channels')
-        .select('id, name')
+        .select('*')
         .order('name');
-
-      if (error) {
-        console.error('Error loading channels:', error);
-        return;
-      }
-
-      setChannels(channelsData || []);
-      // Set first channel as default if none selected
-      if (!currentChannel && channelsData && channelsData.length > 0) {
-        setCurrentChannel(channelsData[0].id);
+      
+      if (!error && channelsData) {
+        setChannels(channelsData);
       }
     }
 
-    loadChannels();
+    fetchChannels();
+
+    // Subscribe to channel changes
+    const channel = supabase
+      .channel('channels')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'channels' },
+        () => fetchChannels()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const loadMessages = useCallback(async () => {
@@ -209,182 +216,119 @@ export default function ChatPage() {
   console.log('Current messages state:', messages);
 
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
-      {/* Sidebar */}
-      <div className="w-64 bg-gray-800 text-white flex flex-col">
-        {/* Workspace Name */}
-        <div className="p-3 border-b border-gray-700">
-          <h1 className="font-bold">ChatGenius</h1>
-        </div>
-        
-        {/* Channels */}
-        <div className="p-4">
-          <h2 className="text-gray-400 uppercase text-sm mb-2">Channels</h2>
-          <ul className="space-y-1">
-            {channels.map(channel => (
-              <li 
-                key={channel.id}
-                onClick={() => {
-                  setCurrentChannel(channel.id);
-                  setSelectedUser(null);
-                }}
-                className={`cursor-pointer px-2 py-1 rounded ${
-                  currentChannel === channel.id && !selectedUser ? 'bg-gray-700' : 'hover:bg-gray-700'
-                }`}
-              >
-                # {channel.name}
-              </li>
-            ))}
-          </ul>
-        </div>
-        
-        {/* Direct Messages */}
-        <div className="p-4">
-          <h2 className="text-gray-400 uppercase text-sm mb-2">Direct Messages</h2>
-          <ul className="space-y-1">
-            {users.map(user => (
-              <li 
-                key={user.id} 
-                onClick={() => {
-                  setSelectedUser(user.id);
-                  setCurrentChannel('');
-                }}
-                className={`cursor-pointer hover:bg-gray-700 px-2 py-1 rounded ${
-                  selectedUser === user.id ? 'bg-gray-700' : ''
-                }`}
-              >
-                <span className={`w-2 h-2 ${user.online ? 'bg-green-500' : 'bg-gray-500'} rounded-full inline-block mr-2`}></span>
-                {user.full_name}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-
-      {/* Chat Area */}
-      <div className="flex-1 flex flex-col">
-        {/* Channel Header */}
-        <div className="border-b p-3 font-medium">
-          {getCurrentChannelName()}
-        </div>
-
-        {/* Messages list */}
-        <div className="flex-1 overflow-y-auto px-4 pt-4">
-          {messages.map((msg) => (
-            <div key={msg.id} className="mb-4">
-              <div className="flex items-start space-x-3">
-                <MessageAvatar 
-                  avatarUrl={msg.user?.avatar_url || '/defpropic.jpg'} 
-                />
-                <div>
-                  <div className="flex items-baseline space-x-2">
-                    <span className="font-bold">{msg.user?.full_name || 'Unknown User'}</span>
-                    <span className="text-xs text-gray-500">
-                      {new Date(msg.created_at).toLocaleTimeString()}
-                    </span>
+    <div className="flex h-screen pt-16">
+      <Sidebar
+        channels={channels}
+        users={users}
+        currentChannel={currentChannel}
+        selectedUser={selectedUser}
+        onChannelSelect={(channelId) => {
+          setCurrentChannel(channelId);
+          setSelectedUser(null);
+        }}
+        onUserSelect={(userId) => {
+          setSelectedUser(userId);
+          setCurrentChannel('');
+        }}
+      />
+      <div className="flex-1 ml-64">
+        <div className="h-full flex flex-col">
+          <div className="flex-1 overflow-y-auto p-4">
+            {messages.map((msg) => (
+              <div key={msg.id} className="mb-4">
+                <div className="flex items-start space-x-3">
+                  <MessageAvatar 
+                    avatarUrl={msg.user?.avatar_url || '/defpropic.jpg'} 
+                  />
+                  <div>
+                    <div className="flex items-baseline space-x-2">
+                      <span className="font-bold">{msg.user?.full_name || 'Unknown User'}</span>
+                      <span className="text-xs text-gray-500">
+                        {new Date(msg.created_at).toLocaleTimeString()}
+                      </span>
+                    </div>
+                    {msg.image_url && (
+                      <img 
+                        src={msg.image_url} 
+                        alt="Message attachment" 
+                        className="mt-2 max-w-sm rounded-lg"
+                      />
+                    )}
+                    {msg.content && (
+                      <p className="mt-2">{msg.content}</p>
+                    )}
                   </div>
-                  {msg.image_url && (
-                    <img 
-                      src={msg.image_url} 
-                      alt="Message attachment" 
-                      className="mt-2 max-w-sm rounded-lg"
-                    />
-                  )}
-                  {msg.content && (
-                    <p className="mt-2">{msg.content}</p>
-                  )}
                 </div>
               </div>
-            </div>
-          ))}
-          <div ref={messagesEndRef} />
-        </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+          <div className="p-4 border-t">
+            <MessageInput onSendMessage={async (content, file)=> {
+              try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) return;
 
-        {/* Message Input */}
-        {/* Original input - commented out
-        <div className="p-4 border-t">
-          <form onSubmit={handleSendMessage} className="flex gap-2">
-            <input
-              type="text"
-              value={message}
-              onChange={handleMessageChange}
-              placeholder={`Message ${getCurrentChannelName()}`}
-              className="flex-1 p-2 border rounded-md"
-            />
-            <button
-              type="submit"
-              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-500"
-            >
-              Send
-            </button>
-          </form>
-        </div>
-        */}
-        
-        {/* New MessageInput component */}
-        <MessageInput onSendMessage={async (content, file)=> {
-          try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
+                let imageUrl = null;
+                if (file) {
+                  const fileExt = file.name.split('.').pop();
+                  const fileName = `${Math.random()}.${fileExt}`;
+                  const { error: uploadError } = await supabase.storage
+                    .from('message-attachments')
+                    .upload(fileName, file);
 
-            let imageUrl = null;
-            if (file) {
-              const fileExt = file.name.split('.').pop();
-              const fileName = `${Math.random()}.${fileExt}`;
-              const { error: uploadError } = await supabase.storage
-                .from('message-attachments')
-                .upload(fileName, file);
-
-              if (uploadError) throw uploadError;
-              
-              imageUrl = supabase.storage
-                .from('message-attachments')
-                .getPublicUrl(fileName).data.publicUrl;
-            }
-
-            const messageData = selectedUser
-              ? {
-                  content: content.trim(),
-                  user_id: user.id,
-                  receiver_id: selectedUser,
-                  is_direct_message: true,
-                  image_url: imageUrl
+                  if (uploadError) throw uploadError;
+                  
+                  imageUrl = supabase.storage
+                    .from('message-attachments')
+                    .getPublicUrl(fileName).data.publicUrl;
                 }
-              : {
-                  content: content.trim(),
-                  channel_id: currentChannel,
-                  user_id: user.id,
-                  is_direct_message: false,
-                  image_url: imageUrl
-                };
 
-            const { data, error } = await supabase
-              .from('messages')
-              .insert([messageData])
-              .select(`
-                *,
-                user:users!messages_user_id_fkey(
-                  id,
-                  full_name,
-                  avatar_url
-                )
-              `);
+                const messageData = selectedUser
+                  ? {
+                      content: content.trim(),
+                      user_id: user.id,
+                      receiver_id: selectedUser,
+                      is_direct_message: true,
+                      image_url: imageUrl
+                    }
+                  : {
+                      content: content.trim(),
+                      channel_id: currentChannel,
+                      user_id: user.id,
+                      is_direct_message: false,
+                      image_url: imageUrl
+                    };
 
-            if (error) {
-              console.error('Database error:', error);
-              throw error;
-            }
-            
-            console.log('Message sent successfully:', data);
-            
-            // Add the new message to the messages state
-            if (data && data[0]) {
-              setMessages(prev => [...prev, data[0]]);
-            }
-          } catch (error) {
-            console.error('Error sending message:', error);
-          }
-        }} />
+                const { data, error } = await supabase
+                  .from('messages')
+                  .insert([messageData])
+                  .select(`
+                    *,
+                    user:users!messages_user_id_fkey(
+                      id,
+                      full_name,
+                      avatar_url
+                    )
+                  `);
+
+                if (error) {
+                  console.error('Database error:', error);
+                  throw error;
+                }
+                
+                console.log('Message sent successfully:', data);
+                
+                // Add the new message to the messages state
+                if (data && data[0]) {
+                  setMessages(prev => [...prev, data[0]]);
+                }
+              } catch (error) {
+                console.error('Error sending message:', error);
+              }
+            }} />
+          </div>
+        </div>
       </div>
     </div>
   );
