@@ -3,3 +3,5 @@ node_modules
 next-env.d.ts
 .cursorrules
 .next
+supabase.sql
+todo.md
