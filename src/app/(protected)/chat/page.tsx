@@ -1,7 +1,7 @@
 'use client';
 
 import { useUsers } from '@/hooks/useUsers';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/utils/supabase/client';
 
 type Message = {
@@ -28,6 +28,7 @@ export default function ChatPage() {
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const users = useUsers();
   const supabase = createClient();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const getAvatarUrl = (path: string) => {
     // If no path is provided or it's the default picture name (with or without slash), return the default picture
@@ -257,10 +258,18 @@ export default function ChatPage() {
     return channel ? `#${channel.name}` : '';
   };
 
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
   console.log('Current messages state:', messages);
 
   return (
-    <div className="flex h-[calc(100vh-3rem)]">
+    <div className="flex h-[calc(100vh-4rem)]">
       {/* Sidebar */}
       <div className="w-64 bg-gray-800 text-white flex flex-col">
         {/* Workspace Name */}
@@ -346,23 +355,26 @@ export default function ChatPage() {
               </div>
             </div>
           ))}
+          <div ref={messagesEndRef} />
         </div>
 
         {/* Message Input */}
         <div className="p-4 border-t">
-          <input
-            type="text"
-            value={message}
-            onChange={handleMessageChange}
-            placeholder={`Message ${getCurrentChannelName()}`}
-            className="w-full p-2 rounded-md border"
-            onKeyPress={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSendMessage(e);
-              }
-            }}
-          />
+          <form onSubmit={handleSendMessage} className="flex gap-2">
+            <input
+              type="text"
+              value={message}
+              onChange={handleMessageChange}
+              placeholder={`Message ${getCurrentChannelName()}`}
+              className="flex-1 p-2 border rounded-md"
+            />
+            <button
+              type="submit"
+              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-500"
+            >
+              Send
+            </button>
+          </form>
         </div>
       </div>
     </div>
