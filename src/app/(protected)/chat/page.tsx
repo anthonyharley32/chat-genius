@@ -7,6 +7,7 @@ import { useAvatarUrl } from '@/hooks/useAvatarUrl';
 import { MessageInput } from '@/components/MessageInput';
 import Sidebar from '@/components/Sidebar';
 import { Message } from '@/components/Message';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 type Message = {
   id: string;
@@ -51,31 +52,39 @@ export default function ChatPage() {
 
   // Fetch channels on component mount
   useEffect(() => {
-    async function fetchChannels() {
+    async function setupChannels() {
+      async function fetchChannels() {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        console.log('Fetching channels for user:', user.id);
+        const { data: channelsData, error } = await supabase
+          .from('channels')
+          .select(`
+            *,
+            channel_members!inner(user_id)
+          `)
+          .eq('channel_members.user_id', user.id)
+          .order('name');
+        
+        if (error) {
+          console.error('Error fetching channels:', error);
+          return;
+        }
+        
+        if (channelsData) {
+          console.log('Channels updated:', channelsData);
+          setChannels(channelsData);
+        }
+      }
+
+      // Initial fetch
+      await fetchChannels();
+
+      // Set up real-time subscription
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      console.log('Fetching channels for user:', user.id);
-      const { data: channelsData, error } = await supabase
-        .from('channels')
-        .select(`
-          *,
-          channel_members!inner(user_id)
-        `)
-        .eq('channel_members.user_id', user.id)
-        .order('name');
-      
-      if (error) {
-        console.error('Error fetching channels:', error);
-        return;
-      }
-      
-      if (channelsData) {
-        console.log('Channels updated:', channelsData);
-        setChannels(channelsData);
-      }
-
-      // Subscribe to both channel and channel member changes
       const channelsSubscription = supabase
         .channel('channels-changes')
         .on('postgres_changes', 
@@ -111,13 +120,20 @@ export default function ChatPage() {
           }
         });
 
-      return () => {
-        console.log('Cleaning up channels subscription');
-        supabase.removeChannel(channelsSubscription);
-      };
+      return channelsSubscription;
     }
 
-    fetchChannels();
+    let subscription: RealtimeChannel;
+    setupChannels().then(sub => {
+      if (sub) subscription = sub;
+    });
+
+    return () => {
+      if (subscription) {
+        console.log('Cleaning up channels subscription');
+        supabase.removeChannel(subscription);
+      }
+    };
   }, []);
 
   const loadMessages = useCallback(async () => {
@@ -348,22 +364,34 @@ export default function ChatPage() {
 
       console.log('Channel created:', channel);
 
-      // Add the creator as a channel member
-      console.log('Adding creator as channel member...');
+      // Get all users
+      const { data: allUsers, error: usersError } = await supabase
+        .from('users')
+        .select('id');
+
+      if (usersError) {
+        console.error('Error fetching users:', usersError);
+        throw usersError;
+      }
+
+      // Create channel members entries for all users
+      const channelMembers = allUsers.map(u => ({
+        channel_id: channel.id,
+        user_id: u.id,
+        role: u.id === user.id ? 'owner' : 'member'
+      }));
+
+      console.log('Adding all users as channel members...');
       const { error: memberError } = await supabase
         .from('channel_members')
-        .insert({
-          channel_id: channel.id,
-          user_id: user.id,
-          role: 'owner'
-        });
+        .insert(channelMembers);
 
       if (memberError) {
-        console.error('Error adding channel member:', memberError);
+        console.error('Error adding channel members:', memberError);
         throw memberError;
       }
 
-      console.log('Successfully created channel and added member');
+      console.log('Successfully created channel and added all members');
     } catch (error) {
       console.error('Error in handleCreateChannel:', error);
     }
