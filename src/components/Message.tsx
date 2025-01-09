@@ -4,6 +4,7 @@ import { EmojiPicker } from './EmojiPicker';
 import { MessageReaction } from './MessageReaction';
 import Image from 'next/image';
 import { useAvatarUrl } from '@/hooks/useAvatarUrl';
+import { FileIcon, Download } from 'lucide-react';
 
 interface Reaction {
   emoji: string;
@@ -22,6 +23,9 @@ interface MessageProps {
       avatar_url: string;
     };
     image_url?: string;
+    file_url?: string | null;
+    file_type?: string | null;
+    file_name?: string | null;
   };
 }
 
@@ -150,6 +154,20 @@ export function Message({ message }: MessageProps) {
               alt="Message attachment" 
               className="mt-2 max-w-sm rounded-lg"
             />
+          )}
+          {message.file_url && (
+            <div className="mt-2">
+              <a
+                href={message.file_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 p-2 bg-gray-100 group-hover:bg-gray-200 hover:!bg-gray-300 transition-colors rounded-lg max-w-fit"
+              >
+                <FileIcon className="w-5 h-5 text-gray-500" />
+                <span className="text-sm text-gray-600">{message.file_name}</span>
+                <Download className="w-4 h-4 text-gray-500" />
+              </a>
+            </div>
           )}
           <div className="flex items-center gap-2 mt-1">
             {reactions.map((reaction) => (

@@ -18,6 +18,9 @@ type Message = {
   receiver_id?: string;
   created_at: string;
   image_url?: string;
+  file_url?: string;
+  file_type?: string;
+  file_name?: string;
   users?: { full_name: string };
   user: {
     id: string;
@@ -36,6 +39,16 @@ export default function ChatPage() {
   const supabase = createClient();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const getAvatarUrl = useAvatarUrl();
+  const [user, setUser] = useState<any>(null);
+
+  // Add this useEffect to fetch user
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    };
+    getUser();
+  }, []);
 
   // Create a memoized avatar component
   const MessageAvatar = memo(({ avatarUrl }: { avatarUrl: string }) => {
@@ -251,6 +264,9 @@ export default function ChatPage() {
               is_direct_message: payload.new.is_direct_message,
               receiver_id: payload.new.receiver_id,
               created_at: payload.new.created_at,
+              file_url: payload.new.file_url,
+              file_type: payload.new.file_type,
+              file_name: payload.new.file_name,
               user: { 
                 id: payload.new.user_id,
                 full_name: userData?.full_name || 'Unknown User',
@@ -425,55 +441,60 @@ export default function ChatPage() {
             </div>
           </div>
           <div className="border-t bg-white">
-            <MessageInput onSendMessage={async (content, file) => {
-              try {
-                const { data: { user } } = await supabase.auth.getUser();
-                if (!user) return;
+            <MessageInput 
+              onSendMessage={async (content, file) => {
+                try {
+                  const { data: { user } } = await supabase.auth.getUser();
+                  if (!user) return;
 
-                let imageUrl = null;
-                if (file) {
-                  const fileExt = file.name.split('.').pop();
-                  const fileName = `${Math.random()}.${fileExt}`;
-                  const { error: uploadError } = await supabase.storage
-                    .from('message-attachments')
-                    .upload(fileName, file);
+                  let imageUrl = null;
+                  if (file) {
+                    const fileExt = file.name.split('.').pop();
+                    const fileName = `${Math.random()}.${fileExt}`;
+                    const { error: uploadError } = await supabase.storage
+                      .from('message-attachments')
+                      .upload(fileName, file);
 
-                  if (uploadError) throw uploadError;
+                    if (uploadError) throw uploadError;
+                    
+                    imageUrl = supabase.storage
+                      .from('message-attachments')
+                      .getPublicUrl(fileName).data.publicUrl;
+                  }
+
+                  const messageData = selectedUser
+                    ? {
+                        content: content.trim(),
+                        user_id: user.id,
+                        receiver_id: selectedUser,
+                        is_direct_message: true,
+                        image_url: imageUrl
+                      }
+                    : {
+                        content: content.trim(),
+                        channel_id: currentChannel,
+                        user_id: user.id,
+                        is_direct_message: false,
+                        image_url: imageUrl
+                      };
+
+                  const { error } = await supabase
+                    .from('messages')
+                    .insert([messageData]);
+
+                  if (error) {
+                    console.error('Database error:', error);
+                    throw error;
+                  }
                   
-                  imageUrl = supabase.storage
-                    .from('message-attachments')
-                    .getPublicUrl(fileName).data.publicUrl;
+                } catch (error) {
+                  console.error('Error sending message:', error);
                 }
-
-                const messageData = selectedUser
-                  ? {
-                      content: content.trim(),
-                      user_id: user.id,
-                      receiver_id: selectedUser,
-                      is_direct_message: true,
-                      image_url: imageUrl
-                    }
-                  : {
-                      content: content.trim(),
-                      channel_id: currentChannel,
-                      user_id: user.id,
-                      is_direct_message: false,
-                      image_url: imageUrl
-                    };
-
-                const { error } = await supabase
-                  .from('messages')
-                  .insert([messageData]);
-
-                if (error) {
-                  console.error('Database error:', error);
-                  throw error;
-                }
-                
-              } catch (error) {
-                console.error('Error sending message:', error);
-              }
-            }} />
+              }}
+              channelId={currentChannel}
+              user={user}
+              selectedUser={selectedUser}
+            />
           </div>
         </div>
       </div>

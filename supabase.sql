@@ -266,3 +266,20 @@ create policy "Message attachment upload policy"
 create policy "Message attachment view policy"
   on storage.objects for select
   using ( bucket_id = 'message-attachments' );
+
+-- Add these columns to your messages table
+alter table messages add column file_url text;
+alter table messages add column file_type text;
+alter table messages add column file_name text;
+
+-- Create a storage bucket for files if you haven't already
+insert into storage.buckets (id, name, public) values ('files', 'files', true);
+
+-- Set up storage policies for files
+create policy "Files are publicly accessible"
+  on storage.objects for select
+  using ( bucket_id = 'files' );
+
+create policy "Authenticated users can upload files"
+  on storage.objects for insert
+  with check ( bucket_id = 'files' AND auth.role() = 'authenticated' );

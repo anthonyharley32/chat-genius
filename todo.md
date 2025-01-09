@@ -12,9 +12,9 @@
 
 ###DEBUG
 -Delayed pp loading on sign in
--white space at top of chat log.
 -fix scrollbar (horizontal scroll)
 -fix multiple users on same computer being logged in.
+-make reactions visible to all users.
 
 
 ###OPTIMIZE
@@ -34,4 +34,5 @@
 -Update status.
 -live update message retrieval. (websockets?)
 -Add an add channel button as a drop down from Channel
+-white space at top of chat log.
 
