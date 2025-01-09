@@ -6,6 +6,7 @@ import { createClient } from '@/utils/supabase/client';
 import { useAvatarUrl } from '@/hooks/useAvatarUrl';
 import { MessageInput } from '@/components/MessageInput';
 import Sidebar from '@/components/Sidebar';
+import { Message } from '@/components/Message';
 
 type Message = {
   id: string;
@@ -254,31 +255,7 @@ export default function ChatPage() {
         <div className="h-full flex flex-col">
           <div className="flex-1 overflow-y-auto px-4 pb-2">
             {messages.map((msg) => (
-              <div key={msg.id} className="mb-4">
-                <div className="flex items-start space-x-3">
-                  <MessageAvatar 
-                    avatarUrl={msg.user?.avatar_url || '/defpropic.jpg'} 
-                  />
-                  <div>
-                    <div className="flex items-baseline space-x-2">
-                      <span className="font-bold">{msg.user?.full_name || 'Unknown User'}</span>
-                      <span className="text-xs text-gray-500">
-                        {new Date(msg.created_at).toLocaleTimeString()}
-                      </span>
-                    </div>
-                    {msg.image_url && (
-                      <img 
-                        src={msg.image_url} 
-                        alt="Message attachment" 
-                        className="mt-2 max-w-sm rounded-lg"
-                      />
-                    )}
-                    {msg.content && (
-                      <p className="mt-2">{msg.content}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <Message key={msg.id} message={msg} />
             ))}
             <div ref={messagesEndRef} />
           </div>
