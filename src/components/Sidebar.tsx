@@ -41,9 +41,7 @@ export default function Sidebar({
 
         {showChannelDropdown && (
           <div className="py-1 mb-2">
-            <button
-              className="flex items-center w-full px-4 py-2 text-sm text-gray-400 hover:bg-gray-800 rounded transition-colors"
-            >
+            <button className="flex items-center w-full px-4 py-2 text-sm text-gray-400 hover:bg-gray-700 hover:text-gray-200 rounded transition-colors">
               <Plus size={16} className="mr-2" />
               Create Channel
             </button>
@@ -55,8 +53,10 @@ export default function Sidebar({
             <li 
               key={channel.id}
               onClick={() => onChannelSelect(channel.id)}
-              className={`cursor-pointer hover:bg-gray-800 px-4 py-2 rounded transition-colors ${
-                currentChannel === channel.id ? 'bg-gray-700 text-white' : 'text-gray-400'
+              className={`cursor-pointer px-4 py-2 rounded transition-all duration-150 text-white ${
+                currentChannel === channel.id 
+                  ? 'bg-gray-700 text-white hover:bg-gray-600' 
+                  : 'text-gray-400 hover:bg-gray-700 hover:text-gray-200'
               }`}
             >
               <span className="text-gray-500 mr-1">#</span>
@@ -74,8 +74,10 @@ export default function Sidebar({
             <li
               key={user.id}
               onClick={() => onUserSelect(user.id)}
-              className={`cursor-pointer hover:bg-gray-800 px-4 py-2 rounded transition-colors flex items-center ${
-                selectedUser === user.id ? 'bg-gray-700 text-white' : 'text-gray-400'
+              className={`cursor-pointer px-4 py-2 rounded transition-all duration-150 flex items-center text-white ${
+                selectedUser === user.id 
+                  ? 'bg-gray-700 text-white hover:bg-gray-600' 
+                  : 'text-gray-400 hover:bg-gray-700 hover:text-gray-200'
               }`}
             >
               <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
