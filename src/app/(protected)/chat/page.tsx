@@ -398,7 +398,7 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-screen pt-16">
+    <div className="flex h-[calc(100vh-4rem)] fixed top-16 w-full">
       <Sidebar
         channels={channels}
         users={users}
@@ -415,15 +415,17 @@ export default function ChatPage() {
         onCreateChannel={handleCreateChannel}
       />
       <div className="flex-1 ml-64">
-        <div className="h-full flex flex-col">
-          <div className="flex-1 overflow-y-auto px-4 pb-2">
-            {messages.map((msg) => (
-              <Message key={msg.id} message={msg} />
-            ))}
-            <div ref={messagesEndRef} />
+        <div className="flex flex-col h-full">
+          <div className="overflow-y-auto flex-1">
+            <div className="px-4">
+              {messages.map((msg) => (
+                <Message key={msg.id} message={msg} />
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
           </div>
-          <div className="border-t">
-            <MessageInput onSendMessage={async (content, file)=> {
+          <div className="border-t bg-white">
+            <MessageInput onSendMessage={async (content, file) => {
               try {
                 const { data: { user } } = await supabase.auth.getUser();
                 if (!user) return;

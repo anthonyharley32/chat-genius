@@ -1,22 +1,30 @@
 ###TODO
--live update message retrieval. (websockets?)
--Add an add channel button as a drop down from Channel
--Fix new login pp on landing.
--Add a way to add a file.
--Add a way to add a poll.
--Add search functionality.
--Add a way to make a thread.
--Give options from navbar pp hover.
--Add a way to add a different workspace.
+-File sending
+-Search
+-Thread creation
+
+
+###NICE-TO-HAVE
+-Workspaces
+-Poll creation
+-navbar pp hover options
+
+
+###DEBUG
+-Delayed pp loading on sign in
+-white space at top of chat log.
+-fix scrollbar (horizontal scroll)
 -fix multiple users on same computer being logged in.
 
 
 ###OPTIMIZE
--white space at top of chat log.
--fix scrollbar (horizontal scroll)
+-isolated videos w/ sound
 -show display name not full name.
 -photo then message.  (with the pp in line with message)
 -send photo and message as seperate messages. (with the pp in line with message)
+-prettier UI for add channel button.
+
+
 
 ###COMPLETED
 -Fix size of chat page.
@@ -24,4 +32,6 @@
 -Add image/video upload.
 -Add emoji reactions.
 -Update status.
+-live update message retrieval. (websockets?)
+-Add an add channel button as a drop down from Channel
 
