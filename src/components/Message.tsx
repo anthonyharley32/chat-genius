@@ -125,23 +125,25 @@ export function Message({ message }: MessageProps) {
           alt={message.user?.full_name || 'User'}
           width={32}
           height={32}
-          className="rounded-full"
+          className="rounded-full aspect-square object-cover"
         />
-        <div className="flex-1">
-          <div className="flex items-baseline justify-between">
-            <div className="flex items-baseline space-x-2">
-              <span className="font-bold">{message.user?.full_name || 'Unknown User'}</span>
-              <span className="text-xs text-gray-500">
-                {new Date(message.created_at).toLocaleTimeString()}
-              </span>
+        <div className="flex-1 -mt-1">
+          <div className="flex flex-col">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center space-x-2">
+                <span className="font-bold">{message.user?.full_name || 'Unknown User'}</span>
+                <span className="text-xs text-gray-500">
+                  {new Date(message.created_at).toLocaleTimeString()}
+                </span>
+              </div>
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                <EmojiPicker onEmojiSelect={handleReaction} />
+              </div>
             </div>
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-              <EmojiPicker onEmojiSelect={handleReaction} />
-            </div>
+            {message.content && (
+              <p className="-mt-4">{message.content}</p>
+            )}
           </div>
-          {message.content && (
-            <p className="mt-1">{message.content}</p>
-          )}
           {message.image_url && (
             <img 
               src={message.image_url} 

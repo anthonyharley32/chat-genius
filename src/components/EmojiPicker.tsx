@@ -36,9 +36,9 @@ export function EmojiPicker({ onEmojiSelect }: EmojiPickerProps) {
       <button
         ref={buttonRef}
         onClick={() => setShowPicker(!showPicker)}
-        className="p-2 hover:bg-gray-100 rounded-full"
+        className="px-3.5 py-1.5 hover:bg-gray-200 rounded-md border-2 border-gray-500 transition-colors duration-300 group"
       >
-        <Smile className="w-5 h-5 text-gray-500" />
+        <Smile className="w-5 h-5 text-gray-500 transition-colors duration-300" />
       </button>
       
       {showPicker && (
