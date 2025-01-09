@@ -118,8 +118,8 @@ export function Message({ message }: MessageProps) {
   };
 
   return (
-    <div className="mb-4 group relative">
-      <div className="flex items-start space-x-3">
+    <div className="group relative hover:bg-gray-100 transition-colors">
+      <div className="flex items-start space-x-3 p-2">
         <Image
           src={getAvatarUrl(message.user?.avatar_url || '/defpropic.jpg') as string}
           alt={message.user?.full_name || 'User'}

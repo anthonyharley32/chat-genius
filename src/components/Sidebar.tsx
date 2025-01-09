@@ -26,6 +26,7 @@ export default function Sidebar({
   onUserSelect 
 }: SidebarProps) {
   const [showChannelDropdown, setShowChannelDropdown] = useState(false);
+  const [searchText, setSearchText] = useState('');
 
   return (
     <div className="w-64 bg-gray-800 text-gray-300 h-[calc(100vh-4rem)] fixed left-0 top-16 p-4 overflow-y-auto">
@@ -93,6 +94,27 @@ export default function Sidebar({
             </li>
           ))}
         </ul>
+      </div>
+
+      {/* Search Input */}
+      <div className="absolute bottom-4 left-4 right-4">
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Search"
+            className="w-full bg-gray-700 text-gray-200 placeholder-gray-400 rounded-md px-4 py-2 pr-8"
+            onChange={(e) => setSearchText(e.target.value)}
+            value={searchText}
+          />
+          {searchText && (
+            <button 
+              onClick={() => setSearchText('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 text-2xl"
+            >
+              ✕
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
