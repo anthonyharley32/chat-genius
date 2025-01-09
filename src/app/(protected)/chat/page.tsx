@@ -215,6 +215,25 @@ export default function ChatPage() {
 
   console.log('Current messages state:', messages);
 
+  useEffect(() => {
+    const loadInitialChannel = async () => {
+      const { data: channels } = await supabase
+        .from('channels')
+        .select('*')
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .single();
+
+      if (channels) {
+        setCurrentChannel(channels.id);
+      }
+    };
+
+    if (!currentChannel && !selectedUser) {
+      loadInitialChannel();
+    }
+  }, [currentChannel, selectedUser, supabase]);
+
   return (
     <div className="flex h-screen pt-16">
       <Sidebar
@@ -233,7 +252,7 @@ export default function ChatPage() {
       />
       <div className="flex-1 ml-64">
         <div className="h-full flex flex-col">
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto px-4 pb-2">
             {messages.map((msg) => (
               <div key={msg.id} className="mb-4">
                 <div className="flex items-start space-x-3">
@@ -263,7 +282,7 @@ export default function ChatPage() {
             ))}
             <div ref={messagesEndRef} />
           </div>
-          <div className="p-4 border-t">
+          <div className="border-t">
             <MessageInput onSendMessage={async (content, file)=> {
               try {
                 const { data: { user } } = await supabase.auth.getUser();

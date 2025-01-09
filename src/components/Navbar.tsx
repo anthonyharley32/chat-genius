@@ -77,7 +77,7 @@ export function Navbar() {
 
   return (
     <nav className="fixed top-0 left-0 right-0 p-2 bg-white shadow-sm z-10">
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
+      <div className="flex items-center justify-between ml-[20px] mr-[20px]">
         <a href="#" onClick={handleLogoClick} className="flex items-center gap-2">
           <Logo className="w-8 h-8" />
           <span className="text-2xl font-bold text-blue-600">ChatGenius</span>
@@ -93,9 +93,9 @@ export function Navbar() {
                 <Image
                   src={avatar}
                   alt="Profile"
-                  width={32}
-                  height={32}
-                  className="rounded-full aspect-square object-cover"
+                  width={40}
+                  height={40}
+                  className="rounded-full object-cover aspect-square"
                 />
               </div>
             )}

@@ -5,6 +5,8 @@ import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useUserStore } from '@/store/userStore';
+import { StatusDot } from '@/components/StatusDot';
+import { StatusType } from '@/types/status';
 
 const TIMEZONES = [
   'Anchorage (AKST) -09:00 UTC',
@@ -52,12 +54,12 @@ const TIMEZONES = [
   'Zurich (CET) +01:00 UTC'
 ].sort();
 
-const STATUS_OPTIONS = [
-  'online',
-  'offline',
-  'busy',
-  'away'
-].sort();
+const STATUS_OPTIONS = {
+  online: { label: 'Online' },
+  away: { label: 'Away' },
+  busy: { label: 'Busy' },
+  offline: { label: 'Offline' }
+} as const;
 
 export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
@@ -271,8 +273,8 @@ export default function ProfilePage() {
     tz.toLowerCase().includes(timezoneSearch.toLowerCase())
   );
 
-  const filteredStatuses = STATUS_OPTIONS.filter(s => 
-    s.toLowerCase().includes(statusSearch.toLowerCase())
+  const filteredStatuses = Object.entries(STATUS_OPTIONS).filter(([key, { label }]) => 
+    label.toLowerCase().includes(statusSearch.toLowerCase())
   );
 
   const handleDrag = (
@@ -433,36 +435,37 @@ export default function ProfilePage() {
                 <label className="block text-sm font-medium text-gray-700">
                   Status
                 </label>
-                <input
-                  type="text"
-                  value={status}
-                  onChange={(e) => {
-                    setStatus(e.target.value);
-                    setStatusSearch(e.target.value);
-                    setShowStatusSuggestions(true);
-                  }}
-                  onFocus={() => setShowStatusSuggestions(true)}
-                  placeholder="Set status..."
-                  className="mt-1 block w-full rounded-md border border-gray-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-                />
-                {showStatusSuggestions && filteredStatuses.length > 0 && (
-                  <div className="absolute z-10 mt-1 w-full rounded-md bg-white shadow-lg">
-                    <ul className="max-h-60 overflow-auto rounded-md py-1 text-base">
-                      {filteredStatuses.map((s) => (
-                        <li
-                          key={s}
-                          onClick={() => {
-                            setStatus(s);
-                            setShowStatusSuggestions(false);
-                          }}
-                          className="cursor-pointer px-3 py-2 hover:bg-gray-100"
-                        >
-                          {s}
-                        </li>
-                      ))}
-                    </ul>
+                <div className="mt-1 relative">
+                  <div
+                    className="w-full rounded-md border border-gray-300 py-2 px-3 cursor-pointer"
+                    onClick={() => setShowStatusSuggestions(!showStatusSuggestions)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <StatusDot status={status as StatusType} />
+                      <span>{STATUS_OPTIONS[status as StatusType].label}</span>
+                    </div>
                   </div>
-                )}
+                  
+                  {showStatusSuggestions && (
+                    <div className="absolute z-10 mt-1 w-full rounded-md bg-white shadow-lg">
+                      <ul className="max-h-60 overflow-auto rounded-md py-1 text-base">
+                        {Object.entries(STATUS_OPTIONS).map(([key, { label }]) => (
+                          <li
+                            key={key}
+                            onClick={() => {
+                              setStatus(key as StatusType);
+                              setShowStatusSuggestions(false);
+                            }}
+                            className="cursor-pointer px-3 py-2 hover:bg-gray-100 flex items-center gap-2"
+                          >
+                            <StatusDot status={key as StatusType} />
+                            <span>{label}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
               </div>
               
               <div className="space-y-4">

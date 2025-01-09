@@ -91,9 +91,9 @@ export function MessageInput({ onSendMessage }: MessageInputProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="p-4 border-t bg-white">
+    <form onSubmit={handleSubmit} className="bg-white">
       {previewUrl && (
-        <div className="mb-2 p-2 border rounded-md">
+        <div className="p-2 border-b">
           <div className="relative h-32 w-32">
             <Image
               src={previewUrl}
@@ -115,7 +115,7 @@ export function MessageInput({ onSendMessage }: MessageInputProps) {
           </div>
         </div>
       )}
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-2 p-4">
         <input
           type="text"
           value={newMessage}
