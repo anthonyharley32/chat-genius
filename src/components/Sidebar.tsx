@@ -15,6 +15,7 @@ interface SidebarProps {
   selectedUser: string | null;
   onChannelSelect: (channelId: string) => void;
   onUserSelect: (userId: string) => void;
+  onCreateChannel?: (name: string) => void;
 }
 
 export default function Sidebar({ 
@@ -23,34 +24,77 @@ export default function Sidebar({
   currentChannel, 
   selectedUser,
   onChannelSelect,
-  onUserSelect 
+  onUserSelect,
+  onCreateChannel 
 }: SidebarProps) {
   const [showChannelDropdown, setShowChannelDropdown] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const [isCreatingChannel, setIsCreatingChannel] = useState(false);
+  const [newChannelName, setNewChannelName] = useState('');
+
+  const handleCreateChannel = () => {
+    if (!isCreatingChannel) {
+      setIsCreatingChannel(true);
+      return;
+    }
+
+    if (newChannelName.trim() && onCreateChannel) {
+      onCreateChannel(newChannelName.trim());
+      setNewChannelName('');
+      setIsCreatingChannel(false);
+      setShowChannelDropdown(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleCreateChannel();
+    } else if (e.key === 'Escape') {
+      setIsCreatingChannel(false);
+      setNewChannelName('');
+    }
+  };
 
   return (
-    <div className="w-64 bg-gray-800 text-gray-300 h-[calc(100vh-4rem)] fixed left-0 top-16 p-4 overflow-y-auto">
+    <div className="w-56 bg-gray-800 text-gray-300 h-[calc(100vh-4rem)] fixed left-0 top-16 p-4 overflow-y-auto">
       {/* Channels Section */}
       <div className="mb-8">
         <div 
-          className="flex items-center justify-between cursor-pointer group mb-2 hover:bg-gray-800 p-2 rounded transition-colors"
+          className="flex items-center cursor-pointer group mb-2 hover:bg-gray-800 p-2 rounded transition-colors"
           onClick={() => setShowChannelDropdown(!showChannelDropdown)}
         >
           <h3 className="text-sm tracking-wider text-gray-400">CHANNELS</h3>
           <ChevronDown 
             size={16} 
-            className={`text-gray-400 transition-transform duration-200 ${
+            className={`text-gray-400 transition-transform duration-200 ml-1 ${
               showChannelDropdown ? 'transform rotate-180' : ''
             }`}
           />
         </div>
 
         {showChannelDropdown && (
-          <div className="py-1 mb-2">
-            <button className="flex items-center w-full px-4 py-2 text-sm text-gray-400 hover:bg-gray-700 hover:text-gray-200 rounded transition-colors">
-              <Plus size={16} className="mr-2" />
-              Create Channel
-            </button>
+          <div className="absolute left-4 mt-1 py-1 bg-white rounded-md shadow-lg border border-gray-200 w-48 z-10">
+            {isCreatingChannel ? (
+              <div className="px-4 py-2 flex items-center">
+                <input
+                  type="text"
+                  placeholder="Channel name"
+                  value={newChannelName}
+                  onChange={(e) => setNewChannelName(e.target.value)}
+                  onKeyDown={handleKeyPress}
+                  className="w-full px-2 py-1 text-sm text-gray-700 border rounded focus:outline-none focus:border-blue-500"
+                  autoFocus
+                />
+              </div>
+            ) : (
+              <button 
+                onClick={handleCreateChannel}
+                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+              >
+                <Plus size={16} className="mr-2" />
+                Create Channel
+              </button>
+            )}
           </div>
         )}
 

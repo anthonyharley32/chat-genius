@@ -5,7 +5,6 @@ import { createClient } from '@/utils/supabase/client';
 type User = {
   id: string;
   full_name: string;
-  online: boolean;
   status: 'online' | 'away' | 'busy' | 'offline';
 };
 

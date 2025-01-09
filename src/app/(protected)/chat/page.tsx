@@ -52,30 +52,72 @@ export default function ChatPage() {
   // Fetch channels on component mount
   useEffect(() => {
     async function fetchChannels() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      console.log('Fetching channels for user:', user.id);
       const { data: channelsData, error } = await supabase
         .from('channels')
-        .select('*')
+        .select(`
+          *,
+          channel_members!inner(user_id)
+        `)
+        .eq('channel_members.user_id', user.id)
         .order('name');
       
-      if (!error && channelsData) {
+      if (error) {
+        console.error('Error fetching channels:', error);
+        return;
+      }
+      
+      if (channelsData) {
+        console.log('Channels updated:', channelsData);
         setChannels(channelsData);
       }
+
+      // Subscribe to both channel and channel member changes
+      const channelsSubscription = supabase
+        .channel('channels-changes')
+        .on('postgres_changes', 
+          { 
+            event: '*', 
+            schema: 'public', 
+            table: 'channels'
+          },
+          (payload) => {
+            console.log('Channel change detected:', payload);
+            fetchChannels();
+          }
+        )
+        .on('postgres_changes',
+          { 
+            event: '*', 
+            schema: 'public', 
+            table: 'channel_members',
+            filter: `user_id=eq.${user.id}`
+          },
+          (payload) => {
+            console.log('Channel member change detected:', payload);
+            fetchChannels();
+          }
+        )
+        .subscribe((status) => {
+          console.log('Channels subscription status:', status);
+          if (status === 'SUBSCRIBED') {
+            console.log('Successfully subscribed to channel changes');
+          }
+          if (status === 'CHANNEL_ERROR') {
+            console.error('Error subscribing to channel changes');
+          }
+        });
+
+      return () => {
+        console.log('Cleaning up channels subscription');
+        supabase.removeChannel(channelsSubscription);
+      };
     }
 
     fetchChannels();
-
-    // Subscribe to channel changes
-    const channel = supabase
-      .channel('channels')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'channels' },
-        () => fetchChannels()
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, []);
 
   const loadMessages = useCallback(async () => {
@@ -138,35 +180,52 @@ export default function ChatPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      if (!currentChannel && !selectedUser) {
+        console.log('No channel or user selected, skipping message subscription');
+        return;
+      }
+
+      console.log('Setting up message subscription for:', selectedUser || currentChannel);
+      
+      // Load initial messages
       loadMessages();
       
-      const channel = supabase
+      const messageChannel = supabase
         .channel(`messages:${selectedUser || currentChannel}`)
-        .on('postgres_changes', 
-          { 
-            event: 'INSERT', 
-            schema: 'public', 
-            table: 'messages'
-          }, 
+        .on('postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+          },
           async (payload) => {
+            console.log('New message received:', payload);
+            
             // Check if message belongs to current conversation
             if (selectedUser) {
               if (!payload.new.is_direct_message ||
                   (payload.new.user_id !== selectedUser && payload.new.user_id !== user.id) ||
                   (payload.new.receiver_id !== selectedUser && payload.new.receiver_id !== user.id)) {
+                console.log('Message not for current DM conversation');
                 return;
               }
-            } else {
+            } else if (currentChannel) {
               if (payload.new.is_direct_message || payload.new.channel_id !== currentChannel) {
+                console.log('Message not for current channel');
                 return;
               }
             }
             
-            const { data: userData } = await supabase
+            const { data: userData, error: userError } = await supabase
               .from('users')
               .select('full_name, avatar_url')
               .eq('id', payload.new.user_id)
               .single();
+
+            if (userError) {
+              console.error('Error fetching user data for message:', userError);
+              return;
+            }
 
             const newMessage: Message = {
               id: payload.new.id,
@@ -183,13 +242,23 @@ export default function ChatPage() {
               }
             };
 
+            console.log('Adding new message to state:', newMessage);
             setMessages(prev => [...prev, newMessage]);
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log('Messages subscription status:', status);
+          if (status === 'SUBSCRIBED') {
+            console.log('Successfully subscribed to message changes');
+          }
+          if (status === 'CHANNEL_ERROR') {
+            console.error('Error subscribing to message changes');
+          }
+        });
 
       return () => {
-        supabase.removeChannel(channel);
+        console.log('Cleaning up messages subscription');
+        supabase.removeChannel(messageChannel);
       };
     };
 
@@ -235,6 +304,71 @@ export default function ChatPage() {
     }
   }, [currentChannel, selectedUser, supabase]);
 
+  // Create a new channel
+  const handleCreateChannel = async (name: string) => {
+    try {
+      console.log('Creating new channel:', name);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('No user found when creating channel');
+        return;
+      }
+
+      // First check if channel already exists
+      const { data: existingChannels, error: checkError } = await supabase
+        .from('channels')
+        .select('id')
+        .eq('name', name.toLowerCase());
+
+      if (checkError) {
+        console.error('Error checking existing channel:', checkError);
+        return;
+      }
+
+      if (existingChannels && existingChannels.length > 0) {
+        console.error('Channel already exists:', name);
+        return;
+      }
+
+      console.log('Creating channel in database...');
+      const { data: channel, error } = await supabase
+        .from('channels')
+        .insert({
+          name: name.toLowerCase(),
+          workspace_id: '00000000-0000-0000-0000-000000000000', // Default workspace
+          created_by: user.id
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating channel:', error);
+        throw error;
+      }
+
+      console.log('Channel created:', channel);
+
+      // Add the creator as a channel member
+      console.log('Adding creator as channel member...');
+      const { error: memberError } = await supabase
+        .from('channel_members')
+        .insert({
+          channel_id: channel.id,
+          user_id: user.id,
+          role: 'owner'
+        });
+
+      if (memberError) {
+        console.error('Error adding channel member:', memberError);
+        throw memberError;
+      }
+
+      console.log('Successfully created channel and added member');
+    } catch (error) {
+      console.error('Error in handleCreateChannel:', error);
+    }
+  };
+
   return (
     <div className="flex h-screen pt-16">
       <Sidebar
@@ -250,6 +384,7 @@ export default function ChatPage() {
           setSelectedUser(userId);
           setCurrentChannel('');
         }}
+        onCreateChannel={handleCreateChannel}
       />
       <div className="flex-1 ml-64">
         <div className="h-full flex flex-col">
@@ -296,29 +431,15 @@ export default function ChatPage() {
                       image_url: imageUrl
                     };
 
-                const { data, error } = await supabase
+                const { error } = await supabase
                   .from('messages')
-                  .insert([messageData])
-                  .select(`
-                    *,
-                    user:users!messages_user_id_fkey(
-                      id,
-                      full_name,
-                      avatar_url
-                    )
-                  `);
+                  .insert([messageData]);
 
                 if (error) {
                   console.error('Database error:', error);
                   throw error;
                 }
                 
-                console.log('Message sent successfully:', data);
-                
-                // Add the new message to the messages state
-                if (data && data[0]) {
-                  setMessages(prev => [...prev, data[0]]);
-                }
               } catch (error) {
                 console.error('Error sending message:', error);
               }

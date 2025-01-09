@@ -17,6 +17,4 @@ export const STATUS_OPTIONS = {
   }
 } as const;
 
-console.log('STATUS_OPTIONS:', STATUS_OPTIONS);
-
 export type StatusType = keyof typeof STATUS_OPTIONS; 

@@ -82,12 +82,7 @@ export default function ProfilePage() {
   const statusRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState('online');
   const [isLoading, setIsLoading] = useState(true);
-  const [isDraggingEdit, setIsDraggingEdit] = useState(false);
-  const [isDraggingDelete, setIsDraggingDelete] = useState(false);
-  const [editPosition, setEditPosition] = useState({ x: -2, y: -2 });
-  const [deletePosition, setDeletePosition] = useState({ x: 2, y: -2 });
-  const [imagePosition, setImagePosition] = useState({ x: 50, y: 50 });
-  const [isDraggingImage, setIsDraggingImage] = useState(false);
+
 
   useEffect(() => {
     getProfile();
@@ -277,34 +272,6 @@ export default function ProfilePage() {
     label.toLowerCase().includes(statusSearch.toLowerCase())
   );
 
-  const handleDrag = (
-    e: React.MouseEvent,
-    setter: (pos: { x: number, y: number }) => void,
-    setDragging: (dragging: boolean) => void
-  ) => {
-    if (e.currentTarget instanceof HTMLElement) {
-      const rect = e.currentTarget.parentElement?.getBoundingClientRect();
-      if (rect) {
-        const x = ((e.clientX - rect.left) / rect.width) * 100;
-        const y = ((e.clientY - rect.top) / rect.height) * 100;
-        setter({ x: Math.max(-10, Math.min(110, x)), y: Math.max(-10, Math.min(110, y)) });
-      }
-    }
-  };
-
-  const handleImageDrag = (e: React.MouseEvent) => {
-    if (!isDraggingImage) return;
-    
-    if (e.currentTarget instanceof HTMLElement) {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const x = ((e.clientX - rect.left) / rect.width) * 100;
-      const y = ((e.clientY - rect.top) / rect.height) * 100;
-      setImagePosition({
-        x: Math.max(0, Math.min(100, x)),
-        y: Math.max(0, Math.min(100, y))
-      });
-    }
-  };
 
   return (
     <main className="min-h-screen p-8">

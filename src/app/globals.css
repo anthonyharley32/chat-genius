@@ -8,6 +8,15 @@
   --background-end-rgb: 255, 255, 255;
 }
 
+/* Base styles to prevent overflow */
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+  position: relative;
+  margin: 0;
+  padding: 0;
+}
+
 body {
   color: rgb(var(--foreground-rgb));
   background: rgb(var(--background-rgb));
@@ -36,5 +45,4 @@ body {
 * {
   scrollbar-width: thin;
   scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
-  overflow-x: hidden;
 } 

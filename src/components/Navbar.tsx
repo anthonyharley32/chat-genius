@@ -62,15 +62,6 @@ export function Navbar() {
     router.push('/chat');
   };
 
-  const handleLogout = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    const { error } = await supabase.auth.signOut();
-    resetAvatar();
-    if (!error) {
-      router.push('/login');
-    }
-  };
-
   if (pathname === '/login' || pathname === '/signup') {
     return null;
   }
