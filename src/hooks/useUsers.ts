@@ -6,6 +6,7 @@ type User = {
   id: string;
   full_name: string;
   online: boolean;
+  status: 'online' | 'away' | 'busy' | 'offline';
 };
 
 export function useUsers() {
@@ -16,7 +17,7 @@ export function useUsers() {
     async function getUsers() {
       const { data: realUsers, error } = await supabase
         .from('users')
-        .select('id, full_name, online')
+        .select('id, full_name, online, status')
         .order('full_name')
         .returns<User[]>();
 

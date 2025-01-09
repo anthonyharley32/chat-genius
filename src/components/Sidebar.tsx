@@ -2,10 +2,15 @@
 
 import { useState } from 'react';
 import { ChevronDown, Plus } from 'lucide-react';
+import { STATUS_OPTIONS, StatusType } from '@/types/status';
 
 interface SidebarProps {
   channels: { id: string; name: string }[];
-  users: any[];
+  users: {
+    id: string;
+    full_name: string;
+    status: StatusType;
+  }[];
   currentChannel: string;
   selectedUser: string | null;
   onChannelSelect: (channelId: string) => void;
@@ -80,9 +85,10 @@ export default function Sidebar({
                   : 'text-gray-400 hover:bg-gray-700 hover:text-gray-200'
               }`}
             >
-              <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
-                user.online ? 'bg-green-500' : 'bg-gray-500'
-              }`} />
+              <span 
+                className={`inline-block w-2 h-2 rounded-full mr-2 ${STATUS_OPTIONS[user.status]?.color || STATUS_OPTIONS.offline.color}`}
+                title={STATUS_OPTIONS[user.status]?.label || STATUS_OPTIONS.offline.label}
+              />
               {user.full_name}
             </li>
           ))}
