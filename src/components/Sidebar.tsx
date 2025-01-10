@@ -148,6 +148,7 @@ export default function Sidebar({
         </ul>
       </div>
 
+
       {/* Modified Search Input */}
       <div className="absolute bottom-4 left-4 right-4">
         <div className="relative">
