@@ -1,0 +1,6 @@
+node_modules
+.env.local
+next-env.d.ts
+.cursorrules
+.next
+.DS_Store

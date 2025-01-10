@@ -1,0 +1,45 @@
+{
+  "name": "template-2",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^1.0.6",
+    "@ai-sdk/openai": "^1.0.13",
+    "@ai-sdk/provider-utils": "^1.0.21",
+    "@deepgram/sdk": "^3.6.0",
+    "@supabase/ssr": "^0.5.2",
+    "@supabase/supabase-js": "^2.47.12",
+    "ai": "^3.3.20",
+    "browser-image-compression": "^2.0.2",
+    "date-fns": "^3.6.0",
+    "emoji-picker-react": "^4.12.0",
+    "firebase": "^10.13.0",
+    "framer-motion": "^11.3.31",
+    "lucide-react": "^0.469.0",
+    "nanoid": "^3.3.8",
+    "next": "^14.2.22",
+    "react": "^18",
+    "react-dom": "^18",
+    "react-hot-toast": "^2.5.1",
+    "react-markdown": "^9.0.1",
+    "replicate": "^0.32.0",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.7",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5"
+  }
+}
