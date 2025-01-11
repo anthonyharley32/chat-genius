@@ -67,12 +67,12 @@ export function SearchResults({ searchText, onResultClick, isOpen }: SearchResul
           id: msg.id,
           content: msg.content,
           channel_id: msg.channel_id,
-          channel_name: msg.channels?.name,
+          channel_name: msg.channels?.[0]?.name || '',
           user_id: msg.user_id,
-          user_name: msg.users?.full_name,
+          user_name: msg.users?.[0]?.full_name || '',
           is_direct_message: msg.is_direct_message,
           receiver_id: msg.receiver_id,
-          receiver_name: msg.receiver?.[0]?.full_name
+          receiver_name: msg.receiver?.[0]?.full_name || ''
         };
       });
 

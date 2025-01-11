@@ -16,6 +16,7 @@
 -Seperate page mapping (DMs and channels)
 -videos don't show a preview.
 -20s delay for message reactions.
+-colored of status updates being live.
 
 
 ###OPTIMIZE
@@ -25,7 +26,7 @@
 -prettier UI for add channel button.
 -Image 'x' button.
 -blinking green button for UI.
--show sending message.
+-show sending message when others are sending.
 
 
 ###COMPLETED

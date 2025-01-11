@@ -1,0 +1,21 @@
+# Dependencies
+node_modules
+npm-debug.log
+
+# Next.js build output
+.next
+
+# Environment files
+.env
+.env.local
+
+# Version control
+.git
+.gitignore
+
+# System files
+.DS_Store
+
+# Docker files
+Dockerfile
+docker-compose.yml 

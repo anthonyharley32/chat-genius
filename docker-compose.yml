@@ -1,0 +1,37 @@
+services:
+  db:
+    container_name: postgres
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  studio:
+    container_name: supabase-studio
+    image: supabase/studio:latest
+    ports:
+      - "3001:3000"
+    environment:
+      SUPABASE_URL: http://localhost:8000
+      STUDIO_PG_META_URL: http://localhost:5432
+      POSTGRES_PASSWORD: postgres
+
+  web:
+    container_name: nextjs-app
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.local
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+
+volumes:
+  postgres_data: 

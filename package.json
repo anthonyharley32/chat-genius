@@ -19,7 +19,6 @@
     "browser-image-compression": "^2.0.2",
     "date-fns": "^3.6.0",
     "emoji-picker-react": "^4.12.0",
-    "firebase": "^10.13.0",
     "framer-motion": "^11.3.31",
     "lucide-react": "^0.469.0",
     "nanoid": "^3.3.8",
