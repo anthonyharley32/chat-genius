@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 interface ModalProps {
   isOpen: boolean;
@@ -9,36 +10,46 @@ interface ModalProps {
 }
 
 export function Modal({ isOpen, onClose, children }: ModalProps) {
-  // Close on escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        onClose();
+      }
     };
 
     if (isOpen) {
-      document.addEventListener('keydown', handleEscape);
+      window.addEventListener('keydown', handleEscape);
     }
 
     return () => {
-      document.removeEventListener('keydown', handleEscape);
+      window.removeEventListener('keydown', handleEscape);
     };
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
-  return (
+  const modalContent = (
     <>
-      {/* Invisible overlay to prevent clicks */}
-      <div className="fixed inset-0 z-40" onClick={onClose} />
-      {/* Modal container */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+      <div 
+        className="fixed inset-0 bg-black/20" 
+        onClick={onClose}
+      />
+      <div 
+        className="fixed inset-0 flex items-center justify-center pointer-events-none"
+      >
         <div 
-          className="relative bg-white rounded-lg shadow-2xl max-h-[80vh] overflow-y-auto pointer-events-auto ring-1 ring-black/5"
-          onClick={(e) => e.stopPropagation()}
+          className="bg-white rounded-lg shadow-2xl pointer-events-auto max-h-[80vh] overflow-y-auto w-full max-w-md"
+          onClick={e => e.stopPropagation()}
         >
           {children}
         </div>
       </div>
     </>
+  );
+
+  // Create portal to render modal at the root level
+  return createPortal(
+    modalContent,
+    document.body
   );
 } 
