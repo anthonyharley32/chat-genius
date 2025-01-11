@@ -10,9 +10,10 @@ interface ChatContainerProps {
   currentChannel: string;
   selectedUser: string | null;
   user: any;
+  highlightedMessageId?: string | null;
 }
 
-export function ChatContainer({ currentChannel, selectedUser, user }: ChatContainerProps) {
+export function ChatContainer({ currentChannel, selectedUser, user, highlightedMessageId }: ChatContainerProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const supabase = createClient();
@@ -151,6 +152,7 @@ export function ChatContainer({ currentChannel, selectedUser, user }: ChatContai
         messages={messages}
         onChannelChange={loadMessages}
         isLoading={isLoading}
+        highlightedMessageId={highlightedMessageId}
       />
       <div className="border-t bg-white">
         <MessageInput 

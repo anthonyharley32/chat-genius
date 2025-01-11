@@ -17,6 +17,7 @@ interface SidebarProps {
   onChannelSelect: (channelId: string) => void;
   onUserSelect: (userId: string) => void;
   onCreateChannel: (channelName: string) => void;
+  onNavigateToMessage: (messageId: string, channelId: string | null, userId: string | null) => void;
 }
 
 export default function Sidebar({ 
@@ -27,6 +28,7 @@ export default function Sidebar({
   onChannelSelect,
   onUserSelect,
   onCreateChannel,
+  onNavigateToMessage
 }: SidebarProps) {
   const [showChannelDropdown, setShowChannelDropdown] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -200,6 +202,7 @@ export default function Sidebar({
                 setShowSearchResults(false);
                 setSearchText('');
               }}
+              onNavigateToMessage={onNavigateToMessage}
             />
           )}
         </div>

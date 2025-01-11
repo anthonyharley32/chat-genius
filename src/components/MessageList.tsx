@@ -7,9 +7,10 @@ interface MessageListProps {
   isLoading?: boolean;
   onChannelChange?: () => void;
   onNewMessage?: () => void;
+  highlightedMessageId?: string | null;
 }
 
-export function MessageList({ messages, isLoading = false, onChannelChange, onNewMessage }: MessageListProps) {
+export function MessageList({ messages, isLoading = false, onChannelChange, onNewMessage, highlightedMessageId }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Initial channel change - instant scroll
@@ -43,6 +44,7 @@ export function MessageList({ messages, isLoading = false, onChannelChange, onNe
             <MessageComponent 
               key={msg.id} 
               message={msg}
+              highlightedMessageId={highlightedMessageId}
               isConsecutive={
                 index > 0 && 
                 messages[index - 1].user.id === msg.user.id &&

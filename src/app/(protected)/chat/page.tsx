@@ -11,6 +11,7 @@ export default function ChatPage() {
   const [channels, setChannels] = useState<any[]>([]);
   const [currentChannel, setCurrentChannel] = useState<string>('');
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const users = useUsers();
   const supabase = createClient();
   const [user, setUser] = useState<any>(null);
@@ -117,6 +118,17 @@ export default function ChatPage() {
     }
   };
 
+  const handleNavigateToMessage = (messageId: string, channelId: string | null, userId: string | null) => {
+    if (channelId) {
+      setCurrentChannel(channelId);
+      setSelectedUser(null);
+    } else if (userId) {
+      setSelectedUser(userId);
+      setCurrentChannel('');
+    }
+    setHighlightedMessageId(messageId);
+  };
+
   if (!user) {
     return null;
   }
@@ -131,18 +143,22 @@ export default function ChatPage() {
         onChannelSelect={(channelId) => {
           setCurrentChannel(channelId);
           setSelectedUser(null);
+          setHighlightedMessageId(null);
         }}
         onUserSelect={(userId) => {
           setSelectedUser(userId);
           setCurrentChannel('');
+          setHighlightedMessageId(null);
         }}
         onCreateChannel={handleCreateChannel}
+        onNavigateToMessage={handleNavigateToMessage}
       />
       <div className="flex-1 ml-56">
         <ChatContainer 
           currentChannel={currentChannel}
           selectedUser={selectedUser}
           user={user}
+          highlightedMessageId={highlightedMessageId}
         />
       </div>
     </div>

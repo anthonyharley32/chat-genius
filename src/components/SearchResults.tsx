@@ -33,12 +33,14 @@ interface SearchResultsProps {
   searchText: string;
   isOpen: boolean;
   onClose: () => void;
+  onNavigateToMessage: (messageId: string, channelId: string | null, userId: string | null) => void;
 }
 
 export default function SearchResults({
   searchText,
   isOpen,
   onClose,
+  onNavigateToMessage
 }: SearchResultsProps) {
   const [results, setResults] = useState<SearchResult[]>([]);
   const supabase = createClient();
@@ -129,6 +131,11 @@ export default function SearchResults({
                 key={result.id}
                 className="py-3 hover:bg-gray-50 transition-colors cursor-pointer -mx-4 px-4"
                 onClick={() => {
+                  onNavigateToMessage(
+                    result.id,
+                    result.is_direct_message ? null : result.channel_id,
+                    result.is_direct_message ? (result.user_id === user?.id ? result.receiver_id || null : result.user_id) : null
+                  );
                   onClose();
                 }}
               >

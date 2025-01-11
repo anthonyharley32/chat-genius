@@ -5,6 +5,7 @@ import { MessageReaction } from './MessageReaction';
 import Image from 'next/image';
 import { useAvatarUrl } from '@/hooks/useAvatarUrl';
 import { FileIcon, Download, X } from 'lucide-react';
+import { useMessageHighlight } from '@/hooks/useMessageHighlight';
 
 interface Reaction {
   emoji: string;
@@ -29,14 +30,16 @@ interface MessageProps {
     file_name?: string | null;
   };
   isConsecutive?: boolean;
+  highlightedMessageId?: string | null;
 }
 
-export function Message({ message, isConsecutive = false }: MessageProps) {
+export function Message({ message, isConsecutive = false, highlightedMessageId }: MessageProps) {
   const [reactions, setReactions] = useState<Reaction[]>([]);
   const [showPicker, setShowPicker] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
   const supabase = createClient();
   const getAvatarUrl = useAvatarUrl();
+  const messageRef = useMessageHighlight(highlightedMessageId === message.id ? message.id : null);
 
   const loadReactions = async () => {
     try {
@@ -175,7 +178,10 @@ export function Message({ message, isConsecutive = false }: MessageProps) {
   };
 
   return (
-    <>
+    <div 
+      ref={messageRef}
+      className={`py-1 px-2 rounded-lg ${isConsecutive ? 'pl-12' : ''}`}
+    >
       <div className="group relative hover:bg-gray-100 transition-colors">
         <div className={`flex items-start space-x-3 ${isConsecutive ? 'py-0 pl-[52px] pr-2' : 'p-2 pb-0'}`}>
           {!isConsecutive && (
@@ -301,6 +307,6 @@ export function Message({ message, isConsecutive = false }: MessageProps) {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 } 
