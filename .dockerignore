@@ -5,10 +5,6 @@ npm-debug.log
 # Next.js build output
 .next
 
-# Environment files
-.env
-.env.local
-
 # Version control
 .git
 .gitignore

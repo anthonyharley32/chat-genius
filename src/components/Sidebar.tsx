@@ -68,38 +68,61 @@ export default function Sidebar({
       {/* Channels Section */}
       <div className="mb-8">
         <div 
-          className="flex items-center cursor-pointer group mb-2 hover:bg-gray-800 p-2 rounded transition-colors"
+          className="flex items-center justify-between cursor-pointer group mb-2 hover:bg-gray-700 p-2 rounded-md transition-all duration-200"
           onClick={() => setShowChannelDropdown(!showChannelDropdown)}
         >
-          <h3 className="text-sm tracking-wider text-gray-400">CHANNELS</h3>
+          <h3 className="text-sm tracking-wider text-gray-400 group-hover:text-gray-200 transition-colors">CHANNELS</h3>
           <ChevronDown 
             size={16} 
-            className={`text-gray-400 transition-transform duration-200 ml-1 ${
+            className={`text-gray-400 group-hover:text-gray-200 transition-all duration-200 ml-1 ${
               showChannelDropdown ? 'transform rotate-180' : ''
             }`}
           />
         </div>
 
         {showChannelDropdown && (
-          <div className="absolute left-4 mt-1 py-1 bg-white rounded-md shadow-lg border border-gray-200 w-48 z-10">
+          <div className="absolute left-4 mt-1 py-2 bg-gray-700 rounded-lg shadow-lg border border-gray-600 w-48 z-10 transform transition-all duration-200 ease-out">
             {isCreatingChannel ? (
-              <div className="px-4 py-2 flex items-center">
+              <div className="px-3 py-2">
                 <input
                   type="text"
                   placeholder="Channel name"
                   value={newChannelName}
                   onChange={(e) => setNewChannelName(e.target.value)}
                   onKeyDown={handleKeyPress}
-                  className="w-full px-2 py-1 text-sm text-gray-700 border rounded focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 text-sm text-gray-200 bg-gray-600 border border-gray-500 rounded-md 
+                    focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 
+                    placeholder-gray-400 transition-all duration-200"
                   autoFocus
                 />
+                <div className="mt-2 flex justify-end space-x-2">
+                  <button
+                    onClick={() => {
+                      setIsCreatingChannel(false);
+                      setNewChannelName('');
+                      setShowChannelDropdown(false);
+                    }}
+                    className="px-3 py-1 text-sm text-gray-300 hover:text-gray-100 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleCreateChannel}
+                    className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-500 
+                      transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={!newChannelName.trim()}
+                  >
+                    Create
+                  </button>
+                </div>
               </div>
             ) : (
               <button 
                 onClick={handleCreateChannel}
-                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                className="flex items-center w-full px-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-600 
+                  transition-all duration-200 group"
               >
-                <Plus size={16} className="mr-2" />
+                <Plus size={16} className="mr-2 text-gray-400 group-hover:text-white transition-colors" />
                 Create Channel
               </button>
             )}
