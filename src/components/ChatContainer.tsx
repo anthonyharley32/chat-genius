@@ -5,6 +5,7 @@ import { MessageList } from '@/components/MessageList';
 import { Message } from '@/types/chat';
 import { useMessageSender } from '@/hooks/useMessageSender';
 import { useRouter } from 'next/navigation';
+import { ThreadView } from '@/components/ThreadView';
 
 interface ChatContainerProps {
   currentChannel: string;
@@ -16,6 +17,7 @@ interface ChatContainerProps {
 export function ChatContainer({ currentChannel, selectedUser, user, highlightedMessageId }: ChatContainerProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [activeThread, setActiveThread] = useState<Message | null>(null);
   const supabase = createClient();
   const { sendMessage } = useMessageSender();
   const router = useRouter();
@@ -55,6 +57,9 @@ export function ChatContainer({ currentChannel, selectedUser, user, highlightedM
           .eq('is_direct_message', false);
       }
 
+      // Only load parent messages (not thread replies)
+      query = query.is('thread_id', null);
+
       const { data, error } = await query;
 
       if (error) throw error;
@@ -87,6 +92,9 @@ export function ChatContainer({ currentChannel, selectedUser, user, highlightedM
             table: 'messages',
           },
           async (payload) => {
+            // Only handle parent messages (not thread replies)
+            if (payload.new.thread_id) return;
+
             // Check if message belongs to current conversation
             if (selectedUser) {
               if (!payload.new.is_direct_message ||
@@ -142,39 +150,55 @@ export function ChatContainer({ currentChannel, selectedUser, user, highlightedM
     setupSubscription();
   }, [currentChannel, selectedUser, loadMessages, user]);
 
+  const handleThreadOpen = (message: Message) => {
+    setActiveThread(message);
+  };
+
   if (!user) {
     return null;
   }
 
   return (
-    <div className="flex flex-col h-full relative" style={{ zIndex: 30 }}>
-      <MessageList 
-        messages={messages}
-        onChannelChange={loadMessages}
-        isLoading={isLoading}
-        highlightedMessageId={highlightedMessageId}
-      />
-      <div className="border-t bg-white">
-        <MessageInput 
-          onSendMessage={async (content, file) => {
-            if (!user) return;
-            try {
-              await sendMessage(
-                content,
-                file || null,
-                user.id,
-                currentChannel,
-                selectedUser || undefined
-              );
-            } catch (error) {
-              console.error('Error sending message:', error);
-            }
-          }}
-          channelId={currentChannel}
-          user={user}
-          selectedUser={selectedUser}
+    <div className="flex h-full relative" style={{ zIndex: 30 }}>
+      <div className={`flex flex-col ${activeThread ? 'w-[60%]' : 'w-full'}`}>
+        <MessageList 
+          messages={messages}
+          onChannelChange={loadMessages}
+          isLoading={isLoading}
+          highlightedMessageId={highlightedMessageId}
+          onThreadSelect={handleThreadOpen}
         />
+        <div className="border-t bg-white">
+          <MessageInput 
+            onSendMessage={async (content, file) => {
+              if (!user) return;
+              try {
+                await sendMessage(
+                  content,
+                  file || null,
+                  user.id,
+                  currentChannel,
+                  selectedUser || undefined
+                );
+              } catch (error) {
+                console.error('Error sending message:', error);
+              }
+            }}
+            channelId={currentChannel}
+            user={user}
+            selectedUser={selectedUser}
+          />
+        </div>
       </div>
+      {activeThread && (
+        <div className="w-[40%]">
+          <ThreadView
+            parentMessage={activeThread}
+            onClose={() => setActiveThread(null)}
+            user={user}
+          />
+        </div>
+      )}
     </div>
   );
 } 

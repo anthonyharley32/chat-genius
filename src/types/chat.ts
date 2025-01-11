@@ -7,9 +7,11 @@ export type Message = {
   receiver_id?: string;
   created_at: string;
   image_url?: string;
-  file_url?: string;
-  file_type?: string;
-  file_name?: string;
+  file_url?: string | null;
+  file_type?: string | null;
+  file_name?: string | null;
+  thread_id?: string;
+  parent_message_id?: string;
   users?: { full_name: string };
   user: {
     id: string;
@@ -25,4 +27,6 @@ export type MessageData = {
   receiver_id?: string;
   is_direct_message: boolean;
   image_url?: string;
+  thread_id?: string;
+  parent_message_id?: string;
 }; 

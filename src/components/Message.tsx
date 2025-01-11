@@ -28,12 +28,17 @@ interface MessageProps {
     file_url?: string | null;
     file_type?: string | null;
     file_name?: string | null;
+    channel_id?: string;
+    is_direct_message: boolean;
+    receiver_id?: string;
+    user_id: string;
   };
   isConsecutive?: boolean;
   highlightedMessageId?: string | null;
+  onThreadSelect?: (message: MessageProps['message']) => void;
 }
 
-export function Message({ message, isConsecutive = false, highlightedMessageId }: MessageProps) {
+export function Message({ message, isConsecutive = false, highlightedMessageId, onThreadSelect }: MessageProps) {
   const [reactions, setReactions] = useState<Reaction[]>([]);
   const [showPicker, setShowPicker] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
@@ -208,6 +213,7 @@ export function Message({ message, isConsecutive = false, highlightedMessageId }
                     <button 
                       className="p-1 hover:bg-gray-200 rounded-full transition-colors"
                       aria-label="Reply to message"
+                      onClick={() => onThreadSelect?.(message)}
                     >
                       <MessageSquare size={16} className="text-gray-500" />
                     </button>
@@ -278,8 +284,15 @@ export function Message({ message, isConsecutive = false, highlightedMessageId }
             </div>
           </div>
           {isConsecutive && (
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center space-x-2">
               <EmojiPicker onEmojiSelect={handleReaction} />
+              <button 
+                className="p-1 hover:bg-gray-200 rounded-full transition-colors"
+                aria-label="Reply to message"
+                onClick={() => onThreadSelect?.(message)}
+              >
+                <MessageSquare size={16} className="text-gray-500" />
+              </button>
             </div>
           )}
         </div>

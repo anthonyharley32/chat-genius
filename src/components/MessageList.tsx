@@ -8,9 +8,17 @@ interface MessageListProps {
   onChannelChange?: () => void;
   onNewMessage?: () => void;
   highlightedMessageId?: string | null;
+  onThreadSelect?: (message: Message) => void;
 }
 
-export function MessageList({ messages, isLoading = false, onChannelChange, onNewMessage, highlightedMessageId }: MessageListProps) {
+export function MessageList({ 
+  messages, 
+  isLoading = false, 
+  onChannelChange, 
+  onNewMessage, 
+  highlightedMessageId,
+  onThreadSelect 
+}: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Initial channel change - instant scroll
@@ -51,6 +59,7 @@ export function MessageList({ messages, isLoading = false, onChannelChange, onNe
                 // Messages within 5 minutes are considered consecutive
                 new Date(msg.created_at).getTime() - new Date(messages[index - 1].created_at).getTime() < 5 * 60 * 1000
               }
+              onThreadSelect={onThreadSelect}
             />
           ))
         )}
