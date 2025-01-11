@@ -4,6 +4,7 @@ import { MessageInput } from '@/components/MessageInput';
 import { MessageList } from '@/components/MessageList';
 import { Message } from '@/types/chat';
 import { useMessageSender } from '@/hooks/useMessageSender';
+import { useRouter } from 'next/navigation';
 
 interface ChatContainerProps {
   currentChannel: string;
@@ -16,6 +17,14 @@ export function ChatContainer({ currentChannel, selectedUser, user }: ChatContai
   const [isLoading, setIsLoading] = useState(false);
   const supabase = createClient();
   const { sendMessage } = useMessageSender();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+  }, [user, router]);
 
   const loadMessages = useCallback(async () => {
     if (!user) return;
@@ -131,6 +140,10 @@ export function ChatContainer({ currentChannel, selectedUser, user }: ChatContai
 
     setupSubscription();
   }, [currentChannel, selectedUser, loadMessages, user]);
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="flex flex-col h-full relative" style={{ zIndex: 30 }}>

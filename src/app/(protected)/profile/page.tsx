@@ -76,6 +76,16 @@ export default function ProfilePage() {
   const [status, setStatus] = useState<StatusType>('online');
   const [isLoading, setIsLoading] = useState(true);
 
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.push('/login');
+        return;
+      }
+    };
+    checkUser();
+  }, [router, supabase.auth]);
 
   useEffect(() => {
     getProfile();

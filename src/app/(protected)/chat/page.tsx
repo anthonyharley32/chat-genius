@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import Sidebar from '@/components/Sidebar';
 import { ChatContainer } from '@/components/ChatContainer';
+import { useRouter } from 'next/navigation';
 
 export default function ChatPage() {
   const [channels, setChannels] = useState<any[]>([]);
@@ -13,11 +14,16 @@ export default function ChatPage() {
   const users = useUsers();
   const supabase = createClient();
   const [user, setUser] = useState<any>(null);
+  const router = useRouter();
 
   // Fetch user
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.push('/login');
+        return;
+      }
       setUser(user);
     };
     getUser();
@@ -25,6 +31,8 @@ export default function ChatPage() {
 
   // Fetch channels on component mount
   useEffect(() => {
+    if (!user) return;
+
     const fetchChannels = async () => {
       const { data: channels } = await supabase
         .from('channels')
@@ -56,10 +64,12 @@ export default function ChatPage() {
     return () => {
       supabase.removeChannel(channelSubscription);
     };
-  }, []);
+  }, [user]);
 
-  // Load initial channel if none selected
+  // Load initial channel
   useEffect(() => {
+    if (!user) return;
+
     const loadInitialChannel = async () => {
       const { data: channels } = await supabase
         .from('channels')
@@ -76,7 +86,7 @@ export default function ChatPage() {
     if (!currentChannel && !selectedUser) {
       loadInitialChannel();
     }
-  }, [currentChannel, selectedUser]);
+  }, [currentChannel, selectedUser, user]);
 
   // Create a new channel
   const handleCreateChannel = async (name: string) => {
@@ -107,7 +117,6 @@ export default function ChatPage() {
     }
   };
 
-  // Handle message selection from search
   const handleMessageSelect = (messageId: string) => {
     const messageElement = document.getElementById(`message-${messageId}`);
     if (messageElement) {
@@ -118,6 +127,10 @@ export default function ChatPage() {
       }, 2000);
     }
   };
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="flex h-[calc(100vh-4rem)] fixed top-16 w-full">
