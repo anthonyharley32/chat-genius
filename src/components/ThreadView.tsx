@@ -17,11 +17,14 @@ export function ThreadView({ parentMessage, onClose, user }: ThreadViewProps) {
   const supabase = createClient();
 
   useEffect(() => {
+    console.log('ThreadView: Parent message changed:', parentMessage);
     if (!parentMessage) return;
 
     const loadReplies = async () => {
       setIsLoading(true);
       try {
+        console.log('ThreadView: Loading replies for thread:', parentMessage.id);
+        
         const { data, error } = await supabase
           .from('messages')
           .select(`
@@ -37,12 +40,14 @@ export function ThreadView({ parentMessage, onClose, user }: ThreadViewProps) {
 
         if (error) throw error;
 
+        console.log('ThreadView: Loaded replies:', data);
+
         setReplies((data || []).map(msg => ({
           ...msg,
           user: msg.user || { full_name: 'Unknown User' }
         })));
       } catch (error) {
-        console.error('Error loading replies:', error);
+        console.error('ThreadView: Error loading replies:', error);
       } finally {
         setIsLoading(false);
       }
@@ -61,6 +66,14 @@ export function ThreadView({ parentMessage, onClose, user }: ThreadViewProps) {
           filter: `thread_id=eq.${parentMessage.id}`
         },
         async (payload) => {
+          console.log('ThreadView: New reply received:', payload);
+
+          // Check if message already exists in replies
+          if (replies.some(reply => reply.id === payload.new.id)) {
+            console.log('ThreadView: Reply already exists, skipping:', payload.new.id);
+            return;
+          }
+
           const { data: userData, error: userError } = await supabase
             .from('users')
             .select('full_name, avatar_url')
@@ -68,7 +81,7 @@ export function ThreadView({ parentMessage, onClose, user }: ThreadViewProps) {
             .single();
 
           if (userError) {
-            console.error('Error fetching user data for reply:', userError);
+            console.error('ThreadView: Error fetching user data for reply:', userError);
             return;
           }
 
@@ -91,6 +104,7 @@ export function ThreadView({ parentMessage, onClose, user }: ThreadViewProps) {
             }
           };
 
+          console.log('ThreadView: Adding new reply to state:', newReply);
           setReplies(prev => [...prev, newReply]);
         })
       .subscribe();
@@ -99,6 +113,42 @@ export function ThreadView({ parentMessage, onClose, user }: ThreadViewProps) {
       supabase.removeChannel(channel);
     };
   }, [parentMessage]);
+
+  const sendThreadReply = async (content: string, file: File | null) => {
+    if (!user || !parentMessage) return;
+    
+    try {
+      console.log('Sending thread reply:', {
+        parentMessageId: parentMessage.id,
+        content,
+        userId: user.id
+      });
+
+      const messageData = {
+        content,
+        user_id: user.id,
+        channel_id: parentMessage.channel_id,
+        is_direct_message: parentMessage.is_direct_message,
+        receiver_id: parentMessage.receiver_id,
+        thread_id: parentMessage.id
+      };
+
+      console.log('Inserting thread message:', messageData);
+
+      const { error: insertError } = await supabase
+        .from('messages')
+        .insert(messageData);
+
+      if (insertError) throw insertError;
+
+      // No need to add to state here - subscription will handle it
+      console.log('Thread reply sent successfully');
+
+    } catch (error) {
+      console.error('Error sending reply:', error);
+      throw error;
+    }
+  };
 
   if (!parentMessage) return null;
 
@@ -150,28 +200,11 @@ export function ThreadView({ parentMessage, onClose, user }: ThreadViewProps) {
       {/* Reply Input */}
       <div className="border-t bg-white">
         <MessageInput
-          onSendMessage={async (content, file) => {
-            if (!user) return;
-            try {
-              const { error } = await supabase
-                .from('messages')
-                .insert({
-                  content,
-                  user_id: user.id,
-                  channel_id: parentMessage.channel_id,
-                  is_direct_message: parentMessage.is_direct_message,
-                  receiver_id: parentMessage.receiver_id,
-                  thread_id: parentMessage.id
-                });
-
-              if (error) throw error;
-            } catch (error) {
-              console.error('Error sending reply:', error);
-            }
-          }}
+          onSendMessage={sendThreadReply}
           channelId={parentMessage.channel_id || ''}
           user={user}
           selectedUser={parentMessage.receiver_id || null}
+          placeholder="Reply in thread..."
         />
       </div>
     </div>

@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useAvatarUrl } from '@/hooks/useAvatarUrl';
 import { FileIcon, Download, X, MessageSquare } from 'lucide-react';
 import { useMessageHighlight } from '@/hooks/useMessageHighlight';
+import { ThreadIndicator } from './ThreadIndicator';
 
 interface Reaction {
   emoji: string;
@@ -271,16 +272,22 @@ export function Message({ message, isConsecutive = false, highlightedMessageId, 
                 )}
               </div>
             )}
-            <div className="flex items-center gap-2 mt-1">
-              {reactions.map((reaction) => (
-                <MessageReaction
-                  key={reaction.emoji}
-                  emoji={reaction.emoji}
-                  count={reaction.count}
-                  hasReacted={reaction.hasReacted}
-                  onReact={() => handleReaction(reaction.emoji)}
-                />
-              ))}
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2">
+                {reactions.map((reaction) => (
+                  <MessageReaction
+                    key={reaction.emoji}
+                    emoji={reaction.emoji}
+                    count={reaction.count}
+                    hasReacted={reaction.hasReacted}
+                    onReact={() => handleReaction(reaction.emoji)}
+                  />
+                ))}
+              </div>
+              <ThreadIndicator 
+                messageId={message.id} 
+                onClick={() => onThreadSelect?.(message)} 
+              />
             </div>
           </div>
           {isConsecutive && (

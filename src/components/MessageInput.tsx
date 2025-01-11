@@ -8,10 +8,11 @@ import { toast } from 'react-hot-toast';
 import { createClient } from '@/utils/supabase/client';
 
 type MessageInputProps = {
-  onSendMessage: (content: string, file?: File) => Promise<void>;
+  onSendMessage: (content: string, file: File | null) => Promise<void>;
   channelId: string;
   user: any;
   selectedUser?: string | null;
+  placeholder?: string;
 };
 
 const supabase = createClient();
@@ -56,15 +57,20 @@ export function MessageInput({ onSendMessage, channelId, user, selectedUser }: M
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newMessage.trim() && !file) return
+    e.preventDefault();
+    if (!newMessage.trim() && !file) return;
 
     try {
+      console.log('MessageInput: Submitting message', {
+        content: newMessage,
+        file: file ? file.name : null
+      });
+
       // First handle file upload if present
       if (file) {
-        const fileExt = file.name.split('.').pop()
-        const timestamp = Date.now()
-        const filePath = `${channelId}/${timestamp}-${file.name}`
+        const fileExt = file.name.split('.').pop();
+        const timestamp = Date.now();
+        const filePath = `${channelId}/${timestamp}-${file.name}`;
         
         // Upload the file
         const { data: uploadData, error: uploadError } = await supabase.storage
@@ -72,17 +78,17 @@ export function MessageInput({ onSendMessage, channelId, user, selectedUser }: M
           .upload(filePath, file, {
             cacheControl: '3600',
             upsert: false
-          })
+          });
 
         if (uploadError) {
-          console.error('File upload error:', uploadError)
-          throw uploadError
+          console.error('File upload error:', uploadError);
+          throw uploadError;
         }
 
         // Get the public URL
         const { data: { publicUrl } } = await supabase.storage
           .from('files')
-          .getPublicUrl(filePath)
+          .getPublicUrl(filePath);
 
         // Send file message
         const { error: fileMessageError } = await supabase.from('messages').insert({
@@ -96,35 +102,24 @@ export function MessageInput({ onSendMessage, channelId, user, selectedUser }: M
           file_name: file.name,
         });
 
-        if (fileMessageError) throw fileMessageError
+        if (fileMessageError) throw fileMessageError;
         
         // Clear file states
-        setFile(null)
-        setPreviewUrl(null)
-        if (fileInputRef.current) fileInputRef.current.value = ''
+        setFile(null);
+        setPreviewUrl(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
       }
 
       // Then send text message if present
       if (newMessage.trim()) {
-        const { error: textMessageError } = await supabase.from('messages').insert({
-          content: newMessage,
-          user_id: user?.id,
-          channel_id: !selectedUser ? channelId : null,
-          receiver_id: selectedUser || null,
-          is_direct_message: !!selectedUser,
-          file_url: null,
-          file_type: null,
-          file_name: null,
-        });
-
-        if (textMessageError) throw textMessageError
-        setNewMessage('')
+        await onSendMessage(newMessage, file);
+        setNewMessage('');
       }
     } catch (error) {
-      console.error('Error sending message:', error)
-      toast.error('Failed to send message')
+      console.error('Error in MessageInput handleSubmit:', error);
+      toast.error('Failed to send message');
     }
-  }
+  };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

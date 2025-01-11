@@ -90,11 +90,9 @@ export function ChatContainer({ currentChannel, selectedUser, user, highlightedM
             event: 'INSERT',
             schema: 'public',
             table: 'messages',
+            filter: `thread_id=is.null`
           },
           async (payload) => {
-            // Only handle parent messages (not thread replies)
-            if (payload.new.thread_id) return;
-
             // Check if message belongs to current conversation
             if (selectedUser) {
               if (!payload.new.is_direct_message ||
@@ -107,7 +105,7 @@ export function ChatContainer({ currentChannel, selectedUser, user, highlightedM
                 return;
               }
             }
-            
+
             const { data: userData, error: userError } = await supabase
               .from('users')
               .select('full_name, avatar_url')

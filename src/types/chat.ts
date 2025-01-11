@@ -29,4 +29,7 @@ export type MessageData = {
   image_url?: string;
   thread_id?: string;
   parent_message_id?: string;
+  file_url?: string;
+  file_type?: string;
+  file_name?: string;
 }; 

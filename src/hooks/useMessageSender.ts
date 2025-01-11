@@ -4,28 +4,47 @@ import { MessageData } from '@/types/chat';
 export function useMessageSender() {
   const supabase = createClient();
 
-  const sendMessage = async (content: string, file: File | null, userId: string, channelId?: string, receiverId?: string) => {
+  const sendMessage = async (
+    content: string, 
+    file: File | null, 
+    userId: string, 
+    channelId?: string, 
+    receiverId?: string,
+    threadId?: string
+  ) => {
     try {
-      let imageUrl: string | undefined;
+      let fileUrl: string | undefined;
+      let fileType: string | undefined;
+      let fileName: string | undefined;
+
       if (file) {
         const fileExt = file.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
+        const timestamp = Date.now();
+        const filePath = `${channelId || userId}/${timestamp}-${file.name}`;
+        
         const { error: uploadError } = await supabase.storage
-          .from('message-attachments')
-          .upload(fileName, file);
+          .from('files')
+          .upload(filePath, file);
 
         if (uploadError) throw uploadError;
         
-        imageUrl = supabase.storage
-          .from('message-attachments')
-          .getPublicUrl(fileName).data.publicUrl;
+        const { data: { publicUrl } } = supabase.storage
+          .from('files')
+          .getPublicUrl(filePath);
+
+        fileUrl = publicUrl;
+        fileType = file.type;
+        fileName = file.name;
       }
 
       const messageData: MessageData = {
         content: content.trim(),
         user_id: userId,
         is_direct_message: !!receiverId,
-        image_url: imageUrl
+        thread_id: threadId,
+        file_url: fileUrl,
+        file_type: fileType,
+        file_name: fileName
       };
 
       if (receiverId) {
