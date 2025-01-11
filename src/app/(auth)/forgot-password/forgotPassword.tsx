@@ -4,6 +4,7 @@ import { createClient } from '../../../utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import React from 'react';
 import { useEffect, useState } from 'react';
+import { authLogger } from '@/utils/logger';
 
 export default function ResetPassword() {
   const [password, setPassword] = useState('');
@@ -24,14 +25,21 @@ export default function ResetPassword() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const { error } = await supabase.auth.updateUser({
-      password: password
-    });
+    try {
+      const { data: { user }, error } = await supabase.auth.updateUser({
+        password: password
+      });
 
-    if (error) {
-      setError(error.message);
-    } else {
-      router.push('/chat'); // Redirect to chat after password reset
+      if (error) {
+        authLogger.logAuthFailure('password_update_failure', user?.email, { error: error.message });
+        setError(error.message);
+      } else if (user) {
+        authLogger.logAuthSuccess('password_updated', user.id, { email: user.email });
+        router.push('/chat');
+      }
+    } catch (error) {
+      console.error('Error updating password:', error);
+      setError('Failed to update password');
     }
   };
 

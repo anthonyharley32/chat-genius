@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import { Logo } from '@/components/Logo';
+import { authLogger } from '@/utils/logger';
 
 export default function SignupPage() {
   const [loading, setLoading] = useState(false);
@@ -37,7 +38,7 @@ export default function SignupPage() {
       }
 
       // Proceed with signup
-      const { error: signUpError } = await supabase.auth.signUp({
+      const { data: { user }, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -49,14 +50,15 @@ export default function SignupPage() {
         },
       });
 
-      if (signUpError) {
-        if (signUpError.message.includes('User already registered')) {
-          throw new Error('An account with this email already exists. Please log in instead.');
-        }
-        throw signUpError;
+      if (error) {
+        authLogger.logAuthFailure('signup_failure', email, { error: error.message });
+        throw error;
       }
 
-      router.push('/login?message=Please check your email to confirm your account. The confirmation link will expire in 24 hours.');
+      if (user) {
+        authLogger.logAuthSuccess('signup_success', user.id, { email: user.email });
+        router.push('/chat');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {

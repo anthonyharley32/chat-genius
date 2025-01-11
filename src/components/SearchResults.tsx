@@ -31,11 +31,15 @@ interface MessageResponse {
 
 interface SearchResultsProps {
   searchText: string;
-  onResultClick: (messageId: string) => void;
   isOpen: boolean;
+  onClose: () => void;
 }
 
-export function SearchResults({ searchText, onResultClick, isOpen }: SearchResultsProps) {
+export default function SearchResults({
+  searchText,
+  isOpen,
+  onClose,
+}: SearchResultsProps) {
   const [results, setResults] = useState<SearchResult[]>([]);
   const supabase = createClient();
   const { user } = useUser();
@@ -98,13 +102,13 @@ export function SearchResults({ searchText, onResultClick, isOpen }: SearchResul
     const after = content.slice(index + searchTerm.length);
 
     // Get the last few words before the search term
-    const beforeWords = before.split(' ').filter(word => word.length < 10).slice(-3).join(' ');
+    const beforeWords = before.split(' ').filter(word => word.length < 20).slice(-6).join(' ');
     // Get the first few words after the search term
-    const afterWords = after.split(' ').filter(word => word.length < 10).slice(0, 3).join(' ');
+    const afterWords = after.split(' ').filter(word => word.length < 20).slice(0, 6).join(' ');
 
     let contextString = '';
     if (beforeWords) contextString += '...' + beforeWords + ' ';
-    contextString += `<em>${content.slice(index, index + searchTerm.length)}</em>`;
+    contextString += `<strong>${content.slice(index, index + searchTerm.length)}</strong>`;
     if (afterWords) contextString += ' ' + afterWords + '...';
 
     return contextString;
@@ -113,7 +117,7 @@ export function SearchResults({ searchText, onResultClick, isOpen }: SearchResul
   if (!isOpen || !searchText) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={() => onResultClick('')}>
+    <Modal isOpen={isOpen} onClose={onClose}>
       <div className="w-[32rem] p-4">
         <h2 className="text-lg font-semibold mb-4">Search Results</h2>
         {results.length === 0 ? (
@@ -124,7 +128,9 @@ export function SearchResults({ searchText, onResultClick, isOpen }: SearchResul
               <div
                 key={result.id}
                 className="py-3 hover:bg-gray-50 transition-colors cursor-pointer -mx-4 px-4"
-                onClick={() => onResultClick(result.id)}
+                onClick={() => {
+                  onClose();
+                }}
               >
                 <div className="font-bold text-sm text-gray-700 mb-1">
                   {result.is_direct_message ? (

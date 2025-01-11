@@ -117,17 +117,6 @@ export default function ChatPage() {
     }
   };
 
-  const handleMessageSelect = (messageId: string) => {
-    const messageElement = document.getElementById(`message-${messageId}`);
-    if (messageElement) {
-      messageElement.scrollIntoView({ behavior: 'smooth' });
-      messageElement.classList.add('bg-yellow-100');
-      setTimeout(() => {
-        messageElement.classList.remove('bg-yellow-100');
-      }, 2000);
-    }
-  };
-
   if (!user) {
     return null;
   }
@@ -148,7 +137,6 @@ export default function ChatPage() {
           setCurrentChannel('');
         }}
         onCreateChannel={handleCreateChannel}
-        onMessageSelect={handleMessageSelect}
       />
       <div className="flex-1 ml-56">
         <ChatContainer 

@@ -13,6 +13,11 @@ export default async function RootLayout({
 
   return (
     <html lang="en">
+      <head>
+        <link rel="icon" type="image/png" href="/logo.png" />
+        {/* Add both PNG and ICO for maximum compatibility */}
+        <link rel="shortcut icon" href="/logo.png" />
+      </head>
       <body>
         <Navbar />
         <div className="pt-16">

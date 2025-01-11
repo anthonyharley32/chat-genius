@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { useUserStore } from '@/store/userStore';
 import { StatusDot } from '@/components/StatusDot';
 import { statusType, StatusType } from '@/types/status';
+import { authLogger } from '@/utils/logger';
 
 const TIMEZONES = [
   'Anchorage (AKST) -09:00 UTC',
@@ -182,11 +183,23 @@ export default function ProfilePage() {
   }
 
   async function handleSignOut() {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error('Error signing out:', error);
-    } else {
-      router.push('/login');
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        if (user) {
+          authLogger.logAuthFailure('signout_failure', user.email!, { error: error.message });
+        }
+        console.error('Error signing out:', error);
+      } else {
+        if (user) {
+          authLogger.logAuthSuccess('signout_success', user.id, { email: user.email });
+        }
+        router.push('/login');
+      }
+    } catch (error) {
+      console.error('Error during sign out:', error);
     }
   }
 

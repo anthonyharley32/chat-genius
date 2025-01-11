@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { ChevronDown, Plus } from 'lucide-react';
 import { statusType, StatusType } from '@/types/status';
-import { SearchResults } from './SearchResults';
+import SearchResults from './SearchResults';
 
 interface SidebarProps {
   channels: { id: string; name: string }[];
@@ -16,8 +16,7 @@ interface SidebarProps {
   selectedUser: string | null;
   onChannelSelect: (channelId: string) => void;
   onUserSelect: (userId: string) => void;
-  onCreateChannel?: (name: string) => void;
-  onMessageSelect?: (messageId: string) => void;
+  onCreateChannel: (channelName: string) => void;
 }
 
 export default function Sidebar({ 
@@ -28,7 +27,6 @@ export default function Sidebar({
   onChannelSelect,
   onUserSelect,
   onCreateChannel,
-  onMessageSelect 
 }: SidebarProps) {
   const [showChannelDropdown, setShowChannelDropdown] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -194,17 +192,16 @@ export default function Sidebar({
               ✕
             </button>
           )}
-          <SearchResults
-            searchText={searchText}
-            onResultClick={(messageId) => {
-              if (onMessageSelect) {
-                onMessageSelect(messageId);
+          {showSearchResults && (
+            <SearchResults
+              searchText={searchText}
+              isOpen={showSearchResults}
+              onClose={() => {
                 setShowSearchResults(false);
                 setSearchText('');
-              }
-            }}
-            isOpen={showSearchResults}
-          />
+              }}
+            />
+          )}
         </div>
       </div>
     </div>

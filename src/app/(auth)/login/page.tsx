@@ -5,6 +5,8 @@ import { useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import { Logo } from '@/components/Logo';
+import { authLogger } from '@/utils/logger';
+import { rateLimiter } from '@/utils/rateLimiter';
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
@@ -22,23 +24,47 @@ export default function LoginPage() {
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
 
+    // Check rate limit for this email
+    const rateLimit = rateLimiter.checkRateLimit(email);
+    if (rateLimit.blocked) {
+      const minutesLeft = Math.ceil(rateLimit.msBeforeNext / 60000);
+      setError(`Too many login attempts. Please try again in ${minutesLeft} minutes.`);
+      setLoading(false);
+      return;
+    }
+
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      const { data: { user }, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (signInError) {
-        if (signInError.message.includes('Invalid login credentials')) {
-          throw new Error('Invalid login credentials. Make sure you have confirmed your email and entered the correct password.');
-        }
-        throw signInError;
+      if (error) {
+        authLogger.logAuthFailure('login_failure', email, { error: error.message });
+        throw error;
       }
 
-      router.push('/chat');
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      if (user) {
+        // Reset rate limit on successful login
+        rateLimiter.resetLimit(email);
+        authLogger.logAuthSuccess('login_success', user.id, { email: user.email });
+        
+        // Check for suspicious activity
+        if (authLogger.checkForSuspiciousActivity(user.id)) {
+          authLogger.logAuthWarning('suspicious_login_activity', user.id, {
+            email: user.email,
+            message: 'Multiple recent login failures detected'
+          });
+        }
+        
+        router.push('/chat');
+      }
+    } catch (error) {
+      console.error('Error signing in:', error);
+      setError('Invalid login credentials');
+      if (rateLimit.remainingAttempts > 0) {
+        setError(`Invalid login credentials. ${rateLimit.remainingAttempts} attempts remaining.`);
+      }
     } finally {
       setLoading(false);
     }
@@ -53,15 +79,34 @@ export default function LoginPage() {
     const formData = new FormData(e.currentTarget);
     const email = formData.get('email') as string;
 
+    // Check rate limit for password reset attempts
+    const rateLimit = rateLimiter.checkRateLimit(`reset_${email}`);
+    if (rateLimit.blocked) {
+      const minutesLeft = Math.ceil(rateLimit.msBeforeNext / 60000);
+      setError(`Too many password reset attempts. Please try again in ${minutesLeft} minutes.`);
+      setLoading(false);
+      return;
+    }
+
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth/callback?next=/profile`,
       });
 
-      if (error) throw error;
+      if (error) {
+        authLogger.logAuthFailure('password_reset_failure', email, { error: error.message });
+        throw error;
+      }
+
+      authLogger.logAuthSuccess('password_reset_requested', email);
       setMessage('Check your email for the password reset link');
+      // Reset rate limit on successful request
+      rateLimiter.resetLimit(`reset_${email}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
+      if (rateLimit.remainingAttempts > 0) {
+        setError(`Failed to send reset link. ${rateLimit.remainingAttempts} attempts remaining.`);
+      }
     } finally {
       setLoading(false);
     }

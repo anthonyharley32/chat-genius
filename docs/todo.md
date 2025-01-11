@@ -9,6 +9,22 @@
 -navbar pp hover options
 
 
+###UTILITIES
+-Add error handling utility for standardized error messages and handling
+-Add data validation utility for input validation (emails, passwords, etc.)
+-Implement persistent caching with Redis or similar for:
+  - User avatars
+  - Channel lists
+  - Frequently accessed messages
+-Move rate limiter to use persistent storage
+-Add comprehensive file upload handling:
+  - Better error messages for failed uploads
+  - File type validation
+  - Progress tracking
+  - Automatic retries for failed uploads
+  - Cleanup of failed upload artifacts
+-Add request/response logging for API calls
+
 ###DEBUG
 -fix multiple users on same computer being logged in.
 -Not scrolling to bottom of chat log.
@@ -41,3 +57,4 @@
 -prettier UI for add channel button.
 -Image 'x' button.
 -Delayed pp loading on sign in
+-proper route protection
