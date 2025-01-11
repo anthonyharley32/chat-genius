@@ -71,7 +71,7 @@ export function Navbar() {
   }
 
   return (
-    <nav className="fixed top-0 left-0 right-0 p-2 bg-gray-100 shadow-sm z-10">
+    <nav className="fixed top-0 left-0 right-0 p-2 bg-white shadow-sm" style={{ zIndex: 20 }}>
       <div className="flex items-center justify-between ml-[20px] mr-[20px]">
         <a href="#" onClick={handleLogoClick} className="flex items-center gap-2">
           <Logo className="w-8 h-8" />
