@@ -4,7 +4,7 @@ import { EmojiPicker } from './EmojiPicker';
 import { MessageReaction } from './MessageReaction';
 import Image from 'next/image';
 import { useAvatarUrl } from '@/hooks/useAvatarUrl';
-import { FileIcon, Download, X } from 'lucide-react';
+import { FileIcon, Download, X, MessageSquare } from 'lucide-react';
 import { useMessageHighlight } from '@/hooks/useMessageHighlight';
 
 interface Reaction {
@@ -203,8 +203,14 @@ export function Message({ message, isConsecutive = false, highlightedMessageId }
                       {new Date(message.created_at).toLocaleTimeString()}
                     </span>
                   </div>
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center space-x-2">
                     <EmojiPicker onEmojiSelect={handleReaction} />
+                    <button 
+                      className="p-1 hover:bg-gray-200 rounded-full transition-colors"
+                      aria-label="Reply to message"
+                    >
+                      <MessageSquare size={16} className="text-gray-500" />
+                    </button>
                   </div>
                 </div>
               )}

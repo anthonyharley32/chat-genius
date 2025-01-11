@@ -1,5 +1,4 @@
 ###TODO
--Search
 -Thread creation
 
 
@@ -8,6 +7,23 @@
 -Poll creation
 -navbar pp hover options
 
+
+###DEBUG
+-fix multiple users on same computer being logged in.
+-Seperate page mapping (DMs and channels)
+-videos don't show a preview.
+-20s delay for message reactions.
+-colored of status updates being live.
+-in incognito mode, can't send files as DM?
+-Search scrolling.
+
+
+###OPTIMIZE
+-isolated videos w/ sound
+-show display name not full name.
+-send photo and message as seperate messages. (with the pp in line with message)
+-blinking green button for UI.
+-show sending message when others are sending.
 
 ###UTILITIES
 -Add error handling utility for standardized error messages and handling
@@ -25,23 +41,6 @@
   - Cleanup of failed upload artifacts
 -Add request/response logging for API calls
 
-###DEBUG
--fix multiple users on same computer being logged in.
--Not scrolling to bottom of chat log.
--Seperate page mapping (DMs and channels)
--videos don't show a preview.
--20s delay for message reactions.
--colored of status updates being live.
--in incognito mode, can't send files as DM?
-
-
-###OPTIMIZE
--isolated videos w/ sound
--show display name not full name.
--send photo and message as seperate messages. (with the pp in line with message)
--blinking green button for UI.
--show sending message when others are sending.
-
 
 ###COMPLETED
 -Fix size of chat page.
@@ -58,3 +57,4 @@
 -Image 'x' button.
 -Delayed pp loading on sign in
 -proper route protection
+-Not scrolling to bottom of chat log.
