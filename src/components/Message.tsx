@@ -180,10 +180,10 @@ export function Message({ message, isConsecutive = false, highlightedMessageId }
   return (
     <div 
       ref={messageRef}
-      className={`py-1 px-2 rounded-lg ${isConsecutive ? 'pl-12' : ''}`}
+      className={`py-1 group hover:bg-gray-100 transition-colors rounded-lg ${isConsecutive ? 'pl-[60px]' : 'px-2'}`}
     >
-      <div className="group relative hover:bg-gray-100 transition-colors">
-        <div className={`flex items-start space-x-3 ${isConsecutive ? 'py-0 pl-[52px] pr-2' : 'p-2 pb-0'}`}>
+      <div className="relative">
+        <div className={`flex items-start ${isConsecutive ? 'py-0 pr-2' : 'p-2 pb-0'} ${!isConsecutive && 'space-x-3'}`}>
           {!isConsecutive && (
             <Image
               src={getAvatarUrl(message.user?.avatar_url || '/defpropic.jpg') as string}
@@ -193,7 +193,7 @@ export function Message({ message, isConsecutive = false, highlightedMessageId }
               className="rounded-full aspect-square object-cover"
             />
           )}
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <div className="flex flex-col">
               {!isConsecutive && (
                 <div className="flex items-center justify-between mb-1">
