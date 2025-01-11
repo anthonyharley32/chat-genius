@@ -458,7 +458,7 @@ export default function ChatPage() {
         onCreateChannel={handleCreateChannel}
         onMessageSelect={handleMessageSelect}
       />
-      <div className="flex-1 ml-64">
+      <div className="flex-1 ml-56">
         <div className="flex flex-col h-full">
           <div className="overflow-y-auto flex-1">
             <div className="px-4 flex flex-col">

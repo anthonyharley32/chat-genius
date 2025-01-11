@@ -186,7 +186,7 @@ export function MessageInput({ onSendMessage, channelId, user, selectedUser }: M
                   setPreviewUrl(null);
                   if (fileInputRef.current) fileInputRef.current.value = '';
                 }}
-                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"
+                className="absolute -top-2 -right-2 w-5 h-5 flex items-center justify-center bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors text-sm leading-[0px]"
               >
                 ×
               </button>

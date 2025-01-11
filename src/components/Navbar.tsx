@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import { useUserStore } from '@/store/userStore';
 import { useAvatarUrl } from '@/hooks/useAvatarUrl';
+import { useUser } from '@/hooks/useUser';
 
 export function Navbar() {
   const [isLoading, setIsLoading] = useState(true);
@@ -19,43 +20,46 @@ export function Navbar() {
   const setAvatar = useUserStore((state) => state.setAvatar);
   const resetAvatar = useUserStore((state) => state.resetAvatar);
   const getAvatarUrl = useAvatarUrl();
+  const { user } = useUser();
 
   useEffect(() => {
     async function loadUserAvatar() {
+      if (!user) {
+        resetAvatar();
+        setIsLoading(false);
+        return;
+      }
+
       setIsLoading(true);
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
+      try {
         const { data, error } = await supabase
           .from('users')
           .select('avatar_url')
           .eq('id', user.id)
           .single();
         
+        if (error) throw error;
+        
         if (data?.avatar_url) {
-          try {
-            console.log('Raw avatar_url from DB:', data.avatar_url);
-            if (data.avatar_url === 'defpropic.jpg' || data.avatar_url === '/defpropic.jpg') {
-              setAvatar('/defpropic.jpg');
-            } else {
-              const avatarUrl = getAvatarUrl(data.avatar_url);
-              console.log('Generated Avatar URL:', avatarUrl);
-              setAvatar(avatarUrl || '/defpropic.jpg');
-            }
-          } catch (error) {
-            console.error('Error getting avatar URL:', error);
+          if (data.avatar_url === 'defpropic.jpg' || data.avatar_url === '/defpropic.jpg') {
             setAvatar('/defpropic.jpg');
+          } else {
+            const avatarUrl = getAvatarUrl(data.avatar_url);
+            setAvatar(avatarUrl || '/defpropic.jpg');
           }
         } else {
-          console.log('No avatar_url, using default');
           setAvatar('/defpropic.jpg');
         }
+      } catch (error) {
+        console.error('Error loading avatar:', error);
+        setAvatar('/defpropic.jpg');
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     }
 
     loadUserAvatar();
-  }, [setAvatar, resetAvatar, getAvatarUrl]);
+  }, [user, setAvatar, resetAvatar, getAvatarUrl]);
 
   const handleLogoClick = (e: React.MouseEvent) => {
     e.preventDefault();
