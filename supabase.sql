@@ -50,6 +50,7 @@ CREATE TABLE public.users (
   created_at timestamptz default now(),
   updated_at timestamptz default now(),
   constraint username_length check (char_length(username) >= 3)
+  constraint status_check check (status IN ('online', 'away', 'busy', 'offline'));
 );
 
 -- Workspaces table
@@ -290,3 +291,20 @@ create policy "Authenticated users can upload files"
 
 -- Create a GIN index for faster searching
 create index messages_content_search_idx on messages using gin(content_search);
+
+-- Enable the pg_trgm extension for partial word matching
+create extension if not exists pg_trgm;
+
+-- Add trigram index for partial word matching
+create index messages_content_trgm_idx on messages using gin(content gin_trgm_ops);
+
+-- Update the content_search column to include more configurations
+alter table messages 
+drop column if exists content_search;
+
+alter table messages 
+add column content_search tsvector 
+generated always as (
+  setweight(to_tsvector('english', coalesce(content, '')), 'A') ||
+  setweight(to_tsvector('simple', coalesce(content, '')), 'B')
+) stored;
