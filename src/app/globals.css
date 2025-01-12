@@ -57,4 +57,17 @@ body {
 
 .highlight-message {
   animation: highlight 2s ease-out;
-} 
+}
+
+@keyframes slow-pulse {
+  0%, 90%, 100% {
+    opacity: 1;
+  }
+  95% {
+    opacity: 0.5;
+  }
+}
+
+.animate-slow-pulse {
+  animation: slow-pulse 5s linear infinite;
+}

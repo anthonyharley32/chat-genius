@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ChevronDown, Plus } from 'lucide-react';
 import { statusType, StatusType } from '@/types/status';
 import SearchResults from './SearchResults';
+import { StatusDot } from './StatusDot';
 
 interface SidebarProps {
   channels: { id: string; name: string }[];
@@ -161,11 +162,8 @@ export default function Sidebar({
                   : 'text-gray-400 hover:bg-gray-700 hover:text-gray-200'
               }`}
             >
-              <span 
-                className={`inline-block w-2 h-2 rounded-full mr-2 ${statusType[user.status]?.color || statusType.offline.color}`}
-                title={statusType[user.status]?.label || statusType.offline.label}
-              />
-              {user.full_name}
+              <StatusDot status={user.status} size="sm" shouldBlink={true} />
+              <span className="ml-2">{user.full_name}</span>
             </li>
           ))}
         </ul>
