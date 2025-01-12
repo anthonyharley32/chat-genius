@@ -44,14 +44,10 @@ export function useMessageSender() {
         thread_id: threadId,
         file_url: fileUrl,
         file_type: fileType,
-        file_name: fileName
+        file_name: fileName,
+        channel_id: !receiverId ? channelId : undefined,
+        receiver_id: receiverId || undefined
       };
-
-      if (receiverId) {
-        messageData.receiver_id = receiverId;
-      } else if (channelId) {
-        messageData.channel_id = channelId;
-      }
 
       const { error } = await supabase
         .from('messages')

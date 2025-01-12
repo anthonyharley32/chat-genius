@@ -90,7 +90,9 @@ export function ChatContainer({ currentChannel, selectedUser, user, highlightedM
             event: 'INSERT',
             schema: 'public',
             table: 'messages',
-            filter: `thread_id=is.null`
+            filter: selectedUser 
+              ? `thread_id=is.null`
+              : `thread_id=is.null and channel_id=eq.${currentChannel}`
           },
           async (payload) => {
             // Check if message belongs to current conversation
@@ -171,6 +173,24 @@ export function ChatContainer({ currentChannel, selectedUser, user, highlightedM
             onSendMessage={async (content, file) => {
               if (!user) return;
               try {
+                // Add optimistic message
+                const optimisticMessage: Message = {
+                  id: `temp-${Date.now()}`,
+                  content: content,
+                  user_id: user.id,
+                  channel_id: currentChannel,
+                  is_direct_message: !!selectedUser,
+                  receiver_id: selectedUser || undefined,
+                  created_at: new Date().toISOString(),
+                  user: {
+                    id: user.id,
+                    full_name: user.user_metadata?.full_name || 'Unknown User',
+                    avatar_url: user.user_metadata?.avatar_url || 'defpropic.jpg'
+                  }
+                };
+                setMessages(prev => [...prev, optimisticMessage]);
+
+                // Send actual message
                 await sendMessage(
                   content,
                   file || null,
@@ -180,6 +200,8 @@ export function ChatContainer({ currentChannel, selectedUser, user, highlightedM
                 );
               } catch (error) {
                 console.error('Error sending message:', error);
+                // Remove optimistic message on error
+                setMessages(prev => prev.filter(msg => msg.id !== `temp-${Date.now()}`));
               }
             }}
             channelId={currentChannel}

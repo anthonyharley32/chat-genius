@@ -176,7 +176,7 @@ export function ThreadView({ parentMessage, onClose, user }: ThreadViewProps) {
 
       {/* Replies */}
       <div className="flex-1 overflow-y-auto">
-        <div className="p-4 space-y-4">
+        <div className="px-4 flex flex-col">
           {isLoading ? (
             <div className="flex justify-center items-center h-32">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>

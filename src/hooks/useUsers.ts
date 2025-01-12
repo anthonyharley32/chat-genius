@@ -35,12 +35,19 @@ export function useUsers() {
       .channel('users_channel')
       .on('postgres_changes', 
         { 
-          event: '*', 
+          event: 'UPDATE', 
           schema: 'public', 
-          table: 'users',
-          filter: 'online is not null'
+          table: 'users'
         }, 
-        () => getUsers()
+        (payload) => {
+          setUsers(currentUsers => 
+            currentUsers.map(user => 
+              user.id === payload.new.id 
+                ? { ...user, status: payload.new.status }
+                : user
+            )
+          );
+        }
       )
       .subscribe();
 
