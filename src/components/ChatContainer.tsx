@@ -105,6 +105,11 @@ export function ChatContainer({ currentChannel, selectedUser, user, highlightedM
               }
             }
 
+            // Add check for thread_id - if it's a thread reply, ignore it
+            if (payload.new.thread_id !== null) {
+              return;
+            }
+
             const { data: userData, error: userError } = await supabase
               .from('users')
               .select('full_name, avatar_url')
