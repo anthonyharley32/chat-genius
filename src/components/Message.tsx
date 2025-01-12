@@ -227,23 +227,36 @@ export function Message({ message, isConsecutive = false, highlightedMessageId, 
               )}
             </div>
             {message.image_url && (
-              <img 
-                src={message.image_url} 
-                alt="Message attachment" 
-                className="mt-2 max-w-sm rounded-lg"
-              />
+              <div className="mt-2 max-w-sm min-h-[200px] rounded-lg bg-gray-100 relative overflow-hidden">
+                <img 
+                  src={message.image_url} 
+                  alt="Message attachment" 
+                  className="max-w-full rounded-lg w-auto h-auto max-h-[400px] object-contain"
+                  loading="lazy"
+                  onLoad={(e) => {
+                    const img = e.target as HTMLImageElement;
+                    img.style.position = 'static';  // Remove absolute positioning after load
+                    img.parentElement?.classList.remove('bg-gray-100');  // Remove background after load
+                  }}
+                />
+              </div>
             )}
             {message.file_url && (
               <div className="mt-2">
                 {message.file_type?.startsWith('image/') ? (
                   // Handle images
-                  <div className="max-w-[min(100%,300px)]">
+                  <div className="max-w-[min(100%,300px)] min-h-[200px] bg-gray-100 relative overflow-hidden">
                     <img 
                       src={message.file_url} 
                       alt={message.file_name || 'Image attachment'} 
-                      className="rounded-lg object-contain w-full max-h-[min(60vh,400px)] cursor-pointer hover:opacity-90 transition-opacity"
+                      className="rounded-lg w-auto h-auto max-h-[400px] object-contain cursor-pointer hover:opacity-90 transition-opacity"
                       loading="lazy"
                       onClick={() => setShowImageModal(true)}
+                      onLoad={(e) => {
+                        const img = e.target as HTMLImageElement;
+                        img.style.position = 'static';  // Remove absolute positioning after load
+                        img.parentElement?.classList.remove('bg-gray-100');  // Remove background after load
+                      }}
                     />
                   </div>
                 ) : message.file_type?.startsWith('video/') ? (

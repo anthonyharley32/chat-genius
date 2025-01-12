@@ -30,19 +30,32 @@ export function MessageList({
   // New messages - smooth scroll
   useEffect(() => {
     if (messages.length > 0 && !highlightedMessageId) {
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ 
-          behavior: "smooth",
-          block: "end"
-        });
-      }, 200);
+      // Immediate scroll for better UX
+      messagesEndRef.current?.scrollIntoView({ 
+        behavior: "smooth",
+        block: "end"
+      });
+      
+      // Additional scroll after images load to ensure we're at the bottom
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage.image_url || (lastMessage.file_url && lastMessage.file_type?.startsWith('image/'))) {
+        const img = new Image();
+        img.onload = () => {
+          messagesEndRef.current?.scrollIntoView({ 
+            behavior: "smooth",
+            block: "end"
+          });
+        };
+        img.src = lastMessage.image_url || lastMessage.file_url || '';
+      }
+      
       onNewMessage?.();
     }
   }, [messages, onNewMessage, highlightedMessageId]);
 
   return (
     <div className="overflow-y-auto flex-1">
-      <div className="px-4 flex flex-col">
+      <div className="px-4 flex flex-col mb-2">
         {isLoading ? (
           <div className="flex justify-center items-center h-32">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
