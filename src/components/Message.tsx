@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { EmojiPicker } from './EmojiPicker';
 import { MessageReaction } from './MessageReaction';
+import { VideoPlayer } from './VideoPlayer';
 import Image from 'next/image';
 import { useAvatarUrl } from '@/hooks/useAvatarUrl';
 import { FileIcon, Download, X, MessageSquare } from 'lucide-react';
@@ -246,17 +247,11 @@ export function Message({ message, isConsecutive = false, highlightedMessageId, 
                     />
                   </div>
                 ) : message.file_type?.startsWith('video/') ? (
-                  // Handle videos
-                  <div className="max-w-[min(100%,300px)]">
-                    <video 
-                      src={message.file_url}
-                      controls
-                      className="rounded-lg w-full max-h-[min(60vh,400px)] object-contain"
-                      preload="metadata"
-                    >
-                      Your browser does not support the video tag.
-                    </video>
-                  </div>
+                  // Handle videos with new VideoPlayer component
+                  <VideoPlayer 
+                    src={message.file_url || ''} 
+                    fileName={message.file_name || undefined}
+                  />
                 ) : (
                   // Handle other files as links
                   <a
