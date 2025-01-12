@@ -8,13 +8,14 @@ import { useRouter } from 'next/navigation';
 import { ThreadView } from '@/components/ThreadView';
 
 interface ChatContainerProps {
-  currentChannel: string;
-  selectedUser: string | null;
+  currentChannel?: string;
+  selectedUser?: string | null;
   user: any;
   highlightedMessageId?: string | null;
+  avatar: string;
 }
 
-export function ChatContainer({ currentChannel, selectedUser, user, highlightedMessageId }: ChatContainerProps) {
+export function ChatContainer({ currentChannel, selectedUser, user, highlightedMessageId, avatar = '/defpropic.jpg' }: ChatContainerProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [activeThread, setActiveThread] = useState<Message | null>(null);
@@ -178,14 +179,17 @@ export function ChatContainer({ currentChannel, selectedUser, user, highlightedM
                   id: `temp-${Date.now()}`,
                   content: content,
                   user_id: user.id,
-                  channel_id: currentChannel,
+                  channel_id: currentChannel || undefined,
                   is_direct_message: !!selectedUser,
                   receiver_id: selectedUser || undefined,
                   created_at: new Date().toISOString(),
+                  file_url: file ? URL.createObjectURL(file) : null,
+                  file_type: file?.type || null,
+                  file_name: file?.name || null,
                   user: {
                     id: user.id,
                     full_name: user.user_metadata?.full_name || 'Unknown User',
-                    avatar_url: user.user_metadata?.avatar_url || 'defpropic.jpg'
+                    avatar_url: typeof avatar === 'string' ? avatar : '/defpropic.jpg'
                   }
                 };
                 setMessages(prev => [...prev, optimisticMessage]);
@@ -198,13 +202,18 @@ export function ChatContainer({ currentChannel, selectedUser, user, highlightedM
                   currentChannel,
                   selectedUser || undefined
                 );
+
+                // Clean up the temporary object URL
+                if (file) {
+                  URL.revokeObjectURL(optimisticMessage.file_url!);
+                }
               } catch (error) {
                 console.error('Error sending message:', error);
                 // Remove optimistic message on error
                 setMessages(prev => prev.filter(msg => msg.id !== `temp-${Date.now()}`));
               }
             }}
-            channelId={currentChannel}
+            channelId={currentChannel || ''}
             user={user}
             selectedUser={selectedUser}
           />

@@ -24,7 +24,10 @@ export function useMessageSender() {
         
         const { error: uploadError } = await supabase.storage
           .from('files')
-          .upload(filePath, file);
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: false
+          });
 
         if (uploadError) throw uploadError;
         

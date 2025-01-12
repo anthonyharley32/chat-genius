@@ -175,7 +175,7 @@ export default function ProfilePage() {
         .eq('id', user.id);
 
       if (error) throw error;
-      alert('Profile updated successfully!');
+      router.push('/chat');
     } catch (error) {
       console.error('Error updating profile:', error);
       alert('Error updating profile');

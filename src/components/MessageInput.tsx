@@ -66,55 +66,17 @@ export function MessageInput({ onSendMessage, channelId, user, selectedUser }: M
         file: file ? file.name : null
       });
 
-      // First handle file upload if present
-      if (file) {
-        const fileExt = file.name.split('.').pop();
-        const timestamp = Date.now();
-        const filePath = `${channelId}/${timestamp}-${file.name}`;
-        
-        // Upload the file
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('files')
-          .upload(filePath, file, {
-            cacheControl: '3600',
-            upsert: false
-          });
+      // Clear states immediately before sending
+      const messageContent = newMessage;
+      const messageFile = file;
+      setNewMessage('');
+      setFile(null);
+      setPreviewUrl(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
 
-        if (uploadError) {
-          console.error('File upload error:', uploadError);
-          throw uploadError;
-        }
-
-        // Get the public URL
-        const { data: { publicUrl } } = await supabase.storage
-          .from('files')
-          .getPublicUrl(filePath);
-
-        // Send file message
-        const { error: fileMessageError } = await supabase.from('messages').insert({
-          content: '', // Empty content for file-only message
-          user_id: user?.id,
-          channel_id: !selectedUser ? channelId : null,
-          receiver_id: selectedUser || null,
-          is_direct_message: !!selectedUser,
-          file_url: publicUrl,
-          file_type: file.type,
-          file_name: file.name,
-        });
-
-        if (fileMessageError) throw fileMessageError;
-        
-        // Clear file states
-        setFile(null);
-        setPreviewUrl(null);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-      }
-
-      // Then send text message if present
-      if (newMessage.trim()) {
-        await onSendMessage(newMessage, file);
-        setNewMessage('');
-      }
+      // Send message with file if present
+      await onSendMessage(messageContent, messageFile);
+      
     } catch (error) {
       console.error('Error in MessageInput handleSubmit:', error);
       toast.error('Failed to send message');

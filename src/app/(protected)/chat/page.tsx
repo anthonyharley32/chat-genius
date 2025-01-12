@@ -6,6 +6,7 @@ import { createClient } from '@/utils/supabase/client';
 import Sidebar from '@/components/Sidebar';
 import { ChatContainer } from '@/components/ChatContainer';
 import { useRouter } from 'next/navigation';
+import { useUserStore } from '@/store/userStore';
 
 export default function ChatPage() {
   const [channels, setChannels] = useState<any[]>([]);
@@ -16,6 +17,7 @@ export default function ChatPage() {
   const supabase = createClient();
   const [user, setUser] = useState<any>(null);
   const router = useRouter();
+  const avatar = useUserStore((state) => state.avatar);
 
   // Fetch user
   useEffect(() => {
@@ -159,6 +161,7 @@ export default function ChatPage() {
           selectedUser={selectedUser}
           user={user}
           highlightedMessageId={highlightedMessageId}
+          avatar={avatar}
         />
       </div>
     </div>
