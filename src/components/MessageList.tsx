@@ -29,7 +29,7 @@ export function MessageList({
 
   // New messages - smooth scroll
   useEffect(() => {
-    if (messages.length > 0) {
+    if (messages.length > 0 && !highlightedMessageId) {
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ 
           behavior: "smooth",
@@ -38,7 +38,7 @@ export function MessageList({
       }, 200);
       onNewMessage?.();
     }
-  }, [messages, onNewMessage]);
+  }, [messages, onNewMessage, highlightedMessageId]);
 
   return (
     <div className="overflow-y-auto flex-1">

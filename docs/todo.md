@@ -1,4 +1,22 @@
 ###TODO
+little white space between bottom message and message input.
+
+###DEBUG
+[ ] fix multiple users on same computer being logged in.
+[ ] Seperate page mapping (DMs and channels)
+[ ] videos don't show a preview.
+[ ] 3~4s delay for message reactions and thread count in main chat log.
+[ ] in incognito mode, can't send files as DM?
+[ ] Search in seperate channel scrolls to message and then the bottom.
+[ ] If you search a message twice, it doesn't highlight.
+
+
+###OPTIMIZE
+[ ] isolated videos w/ sound
+[ ] show display name not full name.
+[ ] blinking green button for UI.
+[ ] show sending message when others are sending.
+
 
 ###NICE[ ] TO[ ] HAVE
 [ ] Workspaces
@@ -6,23 +24,6 @@
 [ ] navbar pp hover options
 [ ] Allow login with email or username
 
-
-###DEBUG
-[ ] fix multiple users on same computer being logged in.
-[ ] Seperate page mapping (DMs and channels)
-[ ] videos don't show a preview.
-[ ] 3~4s delay for message reactions and thread count in main chat log.
-[x] color of status updates being live.
-[ ] in incognito mode, can't send files as DM?
-[ ] Search scrolling.
-
-
-###OPTIMIZE
-[ ] isolated videos w/ sound
-[ ] show display name not full name.
-[ ] send photo and message as seperate messages. (with the pp in line with message)
-[ ] blinking green button for UI.
-[ ] show sending message when others are sending.
 
 
 ###UTILITIES
