@@ -207,7 +207,7 @@ export function Message({ message, isConsecutive = false, highlightedMessageId, 
                   <div className="flex items-center space-x-2">
                     <span className="font-bold">{message.user?.full_name || 'Unknown User'}</span>
                     <span className="text-xs text-gray-500">
-                      {new Date(message.created_at).toLocaleTimeString()}
+                      {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
                   <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center space-x-2">

@@ -78,7 +78,6 @@ export function ChatContainer({ currentChannel, selectedUser, user, highlightedM
 
   useEffect(() => {
     const setupSubscription = async () => {
-      if (!user) return;
       if (!currentChannel && !selectedUser) return;
 
       // Load initial messages
@@ -90,10 +89,7 @@ export function ChatContainer({ currentChannel, selectedUser, user, highlightedM
           {
             event: 'INSERT',
             schema: 'public',
-            table: 'messages',
-            filter: selectedUser 
-              ? `thread_id=is.null`
-              : `thread_id=is.null and channel_id=eq.${currentChannel}`
+            table: 'messages'
           },
           async (payload) => {
             // Check if message belongs to current conversation
@@ -120,7 +116,9 @@ export function ChatContainer({ currentChannel, selectedUser, user, highlightedM
               return;
             }
 
-            const newMessage: Message = {
+            console.log('Adding new message to state:', payload.new);
+
+            const newMessage = {
               id: payload.new.id,
               content: payload.new.content,
               user_id: payload.new.user_id,
@@ -138,7 +136,24 @@ export function ChatContainer({ currentChannel, selectedUser, user, highlightedM
               }
             };
 
-            setMessages(prev => [...prev, newMessage]);
+            setMessages(prev => {
+              // Check if message with this ID already exists
+              const messageExists = prev.some(msg => 
+                // Check both the actual ID and any temp IDs
+                msg.id === payload.new.id || 
+                (msg.id.startsWith('temp-') && msg.content === payload.new.content)
+              );
+              
+              if (messageExists) {
+                // If it exists, replace temp message with real one
+                return prev.map(msg => 
+                  (msg.id.startsWith('temp-') && msg.content === payload.new.content)
+                    ? newMessage
+                    : msg
+                );
+              }
+              return [...prev, newMessage];
+            });
           }
         )
         .subscribe();
