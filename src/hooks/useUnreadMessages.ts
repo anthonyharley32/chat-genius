@@ -147,16 +147,6 @@ export function useUnreadMessages(userId: string) {
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           console.log('Successfully subscribed to unread messages');
-        } else if (status === 'CLOSED') {
-          console.log('Subscription closed, attempting to reconnect...');
-          setTimeout(() => {
-            channel.subscribe();
-          }, 1000);
-        } else if (status === 'CHANNEL_ERROR') {
-          console.error('Channel error, will retry subscription');
-          setTimeout(() => {
-            channel.subscribe();
-          }, 5000);
         }
       });
 
