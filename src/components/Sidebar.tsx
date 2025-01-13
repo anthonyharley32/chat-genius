@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, Plus, MoreVertical } from 'lucide-react';
+import { ChevronDown, Plus, MoreVertical, ArrowUpRight, Ban, BellOff } from 'lucide-react';
 import { statusType, StatusType } from '@/types/status';
 import SearchResults from './SearchResults';
 import { StatusDot } from './StatusDot';
@@ -269,7 +269,7 @@ export default function Sidebar({
         </div>
       </div>
       {/* Dropdown Menus Portal */}
-      {users.map(user => (
+      {users.map((user, index) => (
         activeUserMenu === user.id && (
           <div key={`menu-${user.id}`} className="relative z-[60]" style={{ position: 'fixed' }}>
             <div 
@@ -280,22 +280,52 @@ export default function Sidebar({
               className="fixed py-1 w-48 bg-gray-800 rounded-md shadow-xl border border-gray-700 overflow-hidden"
               style={{
                 left: '232px',
-                top: (() => {
-                  const button = document.querySelector(`[data-user-id="${user.id}"]`);
-                  return button ? button.getBoundingClientRect().top : 0;
-                })()
+                top: `${64 + 32 + (channels.length * 40) + 48 + (index * 40) + 56}px`
               }}
             >
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  // Handle virtual chat action here
+                  // Handle AI chat action here
                   setActiveUserMenu(null);
                 }}
                 className="w-full px-4 py-2 text-sm text-left text-gray-200 hover:bg-gray-700 hover:text-white transition-colors flex items-center gap-2 group"
               >
-                <span className="text-blue-400 group-hover:text-blue-300">🤖</span>
-                Chat with virtual {user.full_name}
+                <span className="text-yellow-400 group-hover:text-yellow-300">✨</span>
+                AI Chat
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Handle breakout action here
+                  setActiveUserMenu(null);
+                }}
+                className="w-full px-4 py-2 text-sm text-left text-gray-200 hover:bg-gray-700 hover:text-white transition-colors flex items-center gap-2 group"
+              >
+                <ArrowUpRight size={16} className="text-blue-400 group-hover:text-blue-300" />
+                Breakout
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Handle mute action here
+                  setActiveUserMenu(null);
+                }}
+                className="w-full px-4 py-2 text-sm text-left text-gray-200 hover:bg-gray-700 hover:text-white transition-colors flex items-center gap-2 group"
+              >
+                <BellOff size={16} className="text-gray-400 group-hover:text-gray-300" />
+                Mute
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Handle block action here
+                  setActiveUserMenu(null);
+                }}
+                className="w-full px-4 py-2 text-sm text-left text-gray-200 hover:bg-gray-700 hover:text-white transition-colors flex items-center gap-2 group"
+              >
+                <Ban size={16} className="text-red-400 group-hover:text-red-300" />
+                Block
               </button>
             </div>
           </div>
