@@ -79,14 +79,14 @@ export default function Sidebar({
   };
 
   return (
-    <div className="w-56 bg-gray-800 text-gray-300 h-[calc(100vh-4rem)] fixed left-0 top-16 p-4 overflow-y-auto">
+    <div className="w-56 bg-gray-800 text-gray-300 h-[calc(100vh-4rem)] fixed left-0 top-16 p-4 overflow-y-auto font-sans">
       {/* Channels Section */}
       <div className="mb-8">
         <div 
           className="flex items-center justify-between cursor-pointer group mb-2 hover:bg-gray-700 p-2 rounded-md transition-all duration-200"
           onClick={() => setShowChannelDropdown(!showChannelDropdown)}
         >
-          <h3 className="text-sm tracking-wider text-gray-400 group-hover:text-gray-200 transition-colors">CHANNELS</h3>
+          <h3 className="text-sm tracking-wider text-gray-400 group-hover:text-gray-200 transition-colors font-sans font-semibold">CHANNELS</h3>
           <ChevronDown 
             size={16} 
             className={`text-gray-400 group-hover:text-gray-200 transition-all duration-200 ml-1 ${
@@ -158,12 +158,12 @@ export default function Sidebar({
                 }`}
               >
                 <div className="flex items-center">
-                  <span className="text-gray-500 mr-1">#</span>
-                  {channel.name}
+                  <span className="text-gray-500 mr-1 font-medium">#</span>
+                  <span className="font-medium">{channel.name}</span>
                 </div>
                 {unreadCount > 0 && (
-                  <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full min-w-[20px] text-center">
-                    {unreadCount}
+                  <span className="bg-blue-500 text-white text-xs font-semibold px-2 py-1 rounded-full min-w-[20px] text-center">
+                    {unreadCount > 99 ? '99+' : unreadCount}
                   </span>
                 )}
               </li>
@@ -174,7 +174,7 @@ export default function Sidebar({
 
       {/* Users Section */}
       <div>
-        <h3 className="text-sm tracking-wider text-gray-400 mb-2 p-2">DIRECT MESSAGES</h3>
+        <h3 className="text-sm tracking-wider text-gray-400 mb-2 p-2 font-sans font-semibold">DIRECT MESSAGES</h3>
         <ul className="space-y-1">
           {users.map(user => {
             const unreadCount = getUnreadCount(undefined, user.id);
@@ -190,11 +190,11 @@ export default function Sidebar({
               >
                 <div className="flex items-center">
                   <StatusDot status={user.status} size="sm" shouldBlink={true} />
-                  <span className="ml-2">{user.full_name}</span>
+                  <span className="ml-2 font-medium">{user.full_name}</span>
                 </div>
                 {unreadCount > 0 && (
-                  <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full min-w-[20px] text-center">
-                    {unreadCount}
+                  <span className="bg-blue-500 text-white text-xs font-semibold px-2 py-1 rounded-full min-w-[20px] text-center">
+                    {unreadCount > 99 ? '99+' : unreadCount}
                   </span>
                 )}
               </li>
