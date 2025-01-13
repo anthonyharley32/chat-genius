@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, Plus } from 'lucide-react';
+import { ChevronDown, Plus, MoreVertical } from 'lucide-react';
 import { statusType, StatusType } from '@/types/status';
 import SearchResults from './SearchResults';
 import { StatusDot } from './StatusDot';
@@ -181,22 +181,46 @@ export default function Sidebar({
             return (
               <li
                 key={user.id}
-                onClick={() => handleUserSelect(user.id)}
-                className={`cursor-pointer px-4 py-2 rounded transition-all duration-150 flex items-center justify-between ${
-                  selectedUser === user.id 
-                    ? 'bg-gray-700 text-white hover:bg-gray-600' 
-                    : 'text-gray-400 hover:bg-gray-700 hover:text-gray-200'
-                }`}
+                className="flex items-center group"
               >
-                <div className="flex items-center">
-                  <StatusDot status={user.status} size="sm" shouldBlink={true} />
-                  <span className="ml-2 font-medium text-white">{user.full_name}</span>
+                <div
+                  onClick={() => handleUserSelect(user.id)}
+                  className={`cursor-pointer w-[calc(100%-28px)] px-4 py-2 rounded transition-all duration-150 flex items-center justify-between ${
+                    selectedUser === user.id 
+                      ? 'bg-gray-700 text-white hover:bg-gray-600' 
+                      : 'text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+                  }`}
+                >
+                  <div className="flex items-center flex-1 min-w-0">
+                    <StatusDot status={user.status} size="sm" shouldBlink={true} />
+                    <div className="relative ml-2 min-w-0 flex-1">
+                      <span className="font-medium text-white whitespace-nowrap overflow-hidden block"
+                            style={{
+                              maskImage: unreadCount > 0 
+                                ? 'linear-gradient(to right, black 85%, transparent 98%)'
+                                : 'linear-gradient(to right, black 85%, transparent 100%)',
+                              WebkitMaskImage: unreadCount > 0 
+                                ? 'linear-gradient(to right, black 85%, transparent 98%)'
+                                : 'linear-gradient(to right, black 85%, transparent 100%)'
+                            }}
+                      >{user.full_name}</span>
+                    </div>
+                  </div>
+                  {unreadCount > 0 && (
+                    <span className="bg-blue-500 text-white text-xs font-semibold px-2 py-1 rounded-full min-w-[20px] text-center ml-2 shrink-0">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
                 </div>
-                {unreadCount > 0 && (
-                  <span className="bg-blue-500 text-white text-xs font-semibold px-2 py-1 rounded-full min-w-[20px] text-center">
-                    {unreadCount > 99 ? '99+' : unreadCount}
-                  </span>
-                )}
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // Add menu handling logic here
+                  }}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:text-white p-1 rounded hover:bg-gray-600 ml-1 w-7"
+                >
+                  <MoreVertical size={16} />
+                </button>
               </li>
             );
           })}
