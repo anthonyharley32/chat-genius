@@ -1,22 +1,24 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
-    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
-    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
-    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+    "./src/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/app/**/*.{js,ts,jsx,tsx,mdx}"
   ],
   theme: {
     extend: {
       fontFamily: {
         sans: [
-          'BlinkMacSystemFont',     // SF Pro Display - Apple's system font (best for digital)
-          '-apple-system',          // Older Apple system font
-          'Segoe UI',              // Microsoft's system font
-          'Roboto',                // Google's system font
-          'system-ui',             // Generic system UI font
-          'Helvetica Neue',        // Classic digital-first font
-          'Arial',                 // Fallback
-          'sans-serif'             // Final fallback
+          'Inter',                 // Modern, clean font perfect for UI
+          'ui-sans-serif',         // Modern system UI font
+          'system-ui',             // System UI fallback
+          '-apple-system',         // Apple system
+          'BlinkMacSystemFont',    // Apple system
+          'Segoe UI',             // Windows
+          'Roboto',               // Android/Chrome
+          'Helvetica Neue',       // Legacy support
+          'Arial',                // Web-safe fallback
+          'sans-serif'            // Final fallback
         ],
       },
     },

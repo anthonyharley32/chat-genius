@@ -327,19 +327,7 @@ RETURNS TRIGGER AS $$
 BEGIN
   -- For channel messages
   IF NEW.channel_id IS NOT NULL THEN
-    -- Update existing record or insert new one
-    UPDATE public.unread_messages
-    SET unread_count = unread_count + 1,
-        updated_at = now()
-    WHERE user_id IN (
-      SELECT cm.user_id
-      FROM public.channel_members cm
-      WHERE cm.channel_id = NEW.channel_id
-      AND cm.user_id != NEW.user_id
-    )
-    AND channel_id = NEW.channel_id;
-    
-    -- If no record exists, insert new one
+    -- Don't increment for the sender's own messages
     INSERT INTO public.unread_messages (user_id, channel_id, unread_count)
     SELECT 
       cm.user_id,
@@ -348,36 +336,26 @@ BEGIN
     FROM public.channel_members cm
     WHERE cm.channel_id = NEW.channel_id
     AND cm.user_id != NEW.user_id
-    AND NOT EXISTS (
-      SELECT 1 
-      FROM public.unread_messages um 
-      WHERE um.user_id = cm.user_id 
-      AND um.channel_id = NEW.channel_id
-    );
+    ON CONFLICT (user_id, channel_id, dm_user_id)
+    DO UPDATE SET 
+      unread_count = CASE 
+        -- Only increment if the user isn't the sender
+        WHEN public.unread_messages.user_id != NEW.user_id THEN public.unread_messages.unread_count + 1
+        ELSE public.unread_messages.unread_count
+      END,
+      updated_at = now();
   
   -- For direct messages
   ELSIF NEW.is_direct_message AND NEW.receiver_id IS NOT NULL THEN
-    -- Update existing record or insert new one for receiver
-    UPDATE public.unread_messages
-    SET unread_count = unread_count + 1,
-        updated_at = now()
-    WHERE user_id = NEW.receiver_id
-    AND dm_user_id = NEW.user_id;
-    
-    -- If no record exists for receiver, insert new one
+    -- Create/update unread count for the receiver
     INSERT INTO public.unread_messages (user_id, dm_user_id, unread_count)
-    SELECT 
-      NEW.receiver_id,
-      NEW.user_id,
-      1
-    WHERE NOT EXISTS (
-      SELECT 1 
-      FROM public.unread_messages um 
-      WHERE um.user_id = NEW.receiver_id 
-      AND um.dm_user_id = NEW.user_id
-    );
+    VALUES (NEW.receiver_id, NEW.user_id, 1)
+    ON CONFLICT (user_id, channel_id, dm_user_id)
+    DO UPDATE SET 
+      unread_count = public.unread_messages.unread_count + 1,
+      updated_at = now();
 
-    -- Ensure sender has a record with count 0
+    -- Also create a record for the sender (with count 0) if it doesn't exist
     INSERT INTO public.unread_messages (user_id, dm_user_id, unread_count)
     VALUES (NEW.user_id, NEW.receiver_id, 0)
     ON CONFLICT (user_id, channel_id, dm_user_id)
