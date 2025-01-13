@@ -161,6 +161,23 @@ CREATE TABLE public.saved_items (
   unique(user_id, message_id)
 );
 
+-- Unread messages table
+CREATE TABLE public.unread_messages (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references public.users(id) on delete cascade,
+  channel_id uuid references public.channels(id) on delete cascade,
+  dm_user_id uuid references public.users(id) on delete cascade,
+  last_read_at timestamptz default now(),
+  unread_count integer default 0,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  constraint valid_unread_type check (
+    (channel_id is not null and dm_user_id is null) or
+    (channel_id is null and dm_user_id is not null)
+  ),
+  unique(user_id, channel_id, dm_user_id)
+);
+
 -- Function to create default workspace and channels
 CREATE OR REPLACE FUNCTION public.create_default_workspace()
 RETURNS void AS $$
@@ -272,11 +289,6 @@ create policy "Message attachment view policy"
   on storage.objects for select
   using ( bucket_id = 'message-attachments' );
 
--- Add these columns to your messages table
-alter table messages add column file_url text;
-alter table messages add column file_type text;
-alter table messages add column file_name text;
-
 -- Create a storage bucket for files if you haven't already
 insert into storage.buckets (id, name, public) values ('files', 'files', true);
 
@@ -308,3 +320,78 @@ generated always as (
   setweight(to_tsvector('english', coalesce(content, '')), 'A') ||
   setweight(to_tsvector('simple', coalesce(content, '')), 'B')
 ) stored;
+
+-- Function to increment unread count
+CREATE OR REPLACE FUNCTION public.increment_unread_count()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- For channel messages
+  IF NEW.channel_id IS NOT NULL THEN
+    -- Don't increment for the sender's own messages
+    INSERT INTO public.unread_messages (user_id, channel_id, unread_count)
+    SELECT 
+      cm.user_id,
+      NEW.channel_id,
+      1
+    FROM public.channel_members cm
+    WHERE cm.channel_id = NEW.channel_id
+    AND cm.user_id != NEW.user_id
+    ON CONFLICT (user_id, channel_id, dm_user_id)
+    DO UPDATE SET 
+      unread_count = CASE 
+        -- Only increment if the user isn't the sender
+        WHEN public.unread_messages.user_id != NEW.user_id THEN public.unread_messages.unread_count + 1
+        ELSE public.unread_messages.unread_count
+      END,
+      updated_at = now();
+  
+  -- For direct messages
+  ELSIF NEW.is_direct_message AND NEW.receiver_id IS NOT NULL THEN
+    -- Create/update unread count for the receiver
+    INSERT INTO public.unread_messages (user_id, dm_user_id, unread_count)
+    VALUES (NEW.receiver_id, NEW.user_id, 1)
+    ON CONFLICT (user_id, channel_id, dm_user_id)
+    DO UPDATE SET 
+      unread_count = public.unread_messages.unread_count + 1,
+      updated_at = now();
+
+    -- Also create a record for the sender (with count 0) if it doesn't exist
+    INSERT INTO public.unread_messages (user_id, dm_user_id, unread_count)
+    VALUES (NEW.user_id, NEW.receiver_id, 0)
+    ON CONFLICT (user_id, channel_id, dm_user_id)
+    DO NOTHING;
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Drop and recreate the trigger
+DROP TRIGGER IF EXISTS increment_unread_count_trigger ON public.messages;
+CREATE TRIGGER increment_unread_count_trigger
+  AFTER INSERT ON public.messages
+  FOR EACH ROW
+  EXECUTE FUNCTION public.increment_unread_count();
+
+-- Function to reset unread count
+CREATE OR REPLACE FUNCTION public.reset_unread_count(
+  p_user_id uuid,
+  p_channel_id uuid DEFAULT NULL,
+  p_dm_user_id uuid DEFAULT NULL
+)
+RETURNS void AS $$
+BEGIN
+  UPDATE public.unread_messages
+  SET 
+    unread_count = 0,
+    last_read_at = now(),
+    updated_at = now()
+  WHERE 
+    user_id = p_user_id
+    AND (
+      (p_channel_id IS NOT NULL AND channel_id = p_channel_id)
+      OR 
+      (p_dm_user_id IS NOT NULL AND dm_user_id = p_dm_user_id)
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;

@@ -154,6 +154,7 @@ export default function ChatPage() {
         }}
         onCreateChannel={handleCreateChannel}
         onNavigateToMessage={handleNavigateToMessage}
+        currentUserId={user.id}
       />
       <div className="flex-1 ml-56">
         <ChatContainer 

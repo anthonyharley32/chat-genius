@@ -5,6 +5,7 @@ import { ChevronDown, Plus } from 'lucide-react';
 import { statusType, StatusType } from '@/types/status';
 import SearchResults from './SearchResults';
 import { StatusDot } from './StatusDot';
+import { useUnreadMessages } from '@/hooks/useUnreadMessages';
 
 interface SidebarProps {
   channels: { id: string; name: string }[];
@@ -19,6 +20,7 @@ interface SidebarProps {
   onUserSelect: (userId: string) => void;
   onCreateChannel: (channelName: string) => void;
   onNavigateToMessage: (messageId: string, channelId: string | null, userId: string | null) => void;
+  currentUserId: string;
 }
 
 export default function Sidebar({ 
@@ -29,13 +31,15 @@ export default function Sidebar({
   onChannelSelect,
   onUserSelect,
   onCreateChannel,
-  onNavigateToMessage
+  onNavigateToMessage,
+  currentUserId
 }: SidebarProps) {
   const [showChannelDropdown, setShowChannelDropdown] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [isCreatingChannel, setIsCreatingChannel] = useState(false);
   const [newChannelName, setNewChannelName] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const { getUnreadCount, markAsRead } = useUnreadMessages(currentUserId);
 
   const handleCreateChannel = () => {
     if (!isCreatingChannel) {
@@ -62,6 +66,16 @@ export default function Sidebar({
 
   const handleSearchFocus = () => {
     setShowSearchResults(true);
+  };
+
+  const handleChannelSelect = (channelId: string) => {
+    onChannelSelect(channelId);
+    markAsRead(channelId);
+  };
+
+  const handleUserSelect = (userId: string) => {
+    onUserSelect(userId);
+    markAsRead(undefined, userId);
   };
 
   return (
@@ -131,20 +145,30 @@ export default function Sidebar({
         )}
 
         <ul className="space-y-1">
-          {channels.map(channel => (
-            <li 
-              key={channel.id}
-              onClick={() => onChannelSelect(channel.id)}
-              className={`cursor-pointer px-4 py-2 rounded transition-all duration-150 text-white ${
-                currentChannel === channel.id 
-                  ? 'bg-gray-700 text-white hover:bg-gray-600' 
-                  : 'text-gray-400 hover:bg-gray-700 hover:text-gray-200'
-              }`}
-            >
-              <span className="text-gray-500 mr-1">#</span>
-              {channel.name}
-            </li>
-          ))}
+          {channels.map(channel => {
+            const unreadCount = getUnreadCount(channel.id);
+            return (
+              <li 
+                key={channel.id}
+                onClick={() => handleChannelSelect(channel.id)}
+                className={`cursor-pointer px-4 py-2 rounded transition-all duration-150 flex items-center justify-between ${
+                  currentChannel === channel.id 
+                    ? 'bg-gray-700 text-white hover:bg-gray-600' 
+                    : 'text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+                }`}
+              >
+                <div className="flex items-center">
+                  <span className="text-gray-500 mr-1">#</span>
+                  {channel.name}
+                </div>
+                {unreadCount > 0 && (
+                  <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full min-w-[20px] text-center">
+                    {unreadCount}
+                  </span>
+                )}
+              </li>
+            );
+          })}
         </ul>
       </div>
 
@@ -152,25 +176,34 @@ export default function Sidebar({
       <div>
         <h3 className="text-sm tracking-wider text-gray-400 mb-2 p-2">DIRECT MESSAGES</h3>
         <ul className="space-y-1">
-          {users.map(user => (
-            <li
-              key={user.id}
-              onClick={() => onUserSelect(user.id)}
-              className={`cursor-pointer px-4 py-2 rounded transition-all duration-150 flex items-center text-white ${
-                selectedUser === user.id 
-                  ? 'bg-gray-700 text-white hover:bg-gray-600' 
-                  : 'text-gray-400 hover:bg-gray-700 hover:text-gray-200'
-              }`}
-            >
-              <StatusDot status={user.status} size="sm" shouldBlink={true} />
-              <span className="ml-2">{user.full_name}</span>
-            </li>
-          ))}
+          {users.map(user => {
+            const unreadCount = getUnreadCount(undefined, user.id);
+            return (
+              <li
+                key={user.id}
+                onClick={() => handleUserSelect(user.id)}
+                className={`cursor-pointer px-4 py-2 rounded transition-all duration-150 flex items-center justify-between ${
+                  selectedUser === user.id 
+                    ? 'bg-gray-700 text-white hover:bg-gray-600' 
+                    : 'text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+                }`}
+              >
+                <div className="flex items-center">
+                  <StatusDot status={user.status} size="sm" shouldBlink={true} />
+                  <span className="ml-2">{user.full_name}</span>
+                </div>
+                {unreadCount > 0 && (
+                  <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full min-w-[20px] text-center">
+                    {unreadCount}
+                  </span>
+                )}
+              </li>
+            );
+          })}
         </ul>
       </div>
 
-
-      {/* Modified Search Input */}
+      {/* Search Input */}
       <div className="absolute bottom-4 left-4 right-4">
         <div className="relative">
           <input

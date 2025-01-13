@@ -1,12 +1,12 @@
 ###TODO
-little white space between bottom message and message input.
 
 ###DEBUG
-[ ] fix multiple users on same computer being logged in.
-[ ] videos don't show a preview.
-[ ] 3~4s delay for message reactions and thread count in main chat log.
-[ ] in incognito mode, can't send files as DM?
+[ ] video show thumbnail and plays after refresh.
+[ ] 8s delay for message reactions and thread count in main chat log. (pushes log down)
 [ ] If you search a message twice, it doesn't highlight.
+[ ] fix multiple users on same computer being logged in.
+[ ] after image send, rerenders
+
 
 
 ###OPTIMIZE
@@ -14,7 +14,8 @@ little white space between bottom message and message input.
 [ ] show display name not full name.
 [ ] show sending message when others are sending.
 [ ] Seperate page mapping (DMs and channels)
-
+[X] Notification for new messages.
+[ ] shows search result with space on each side.
 
 ###NICE[ ] TO[ ] HAVE
 [ ] Workspaces
@@ -43,3 +44,9 @@ little white space between bottom message and message input.
   [ ]  Automatic retries for failed uploads
   [ ]  Cleanup of failed upload artifacts
 [ ] Add request/response logging for API calls
+
+
+
+#TRY
+[ ] supabase CLI tracking
+[ ] add reatltime init in supabase.sql

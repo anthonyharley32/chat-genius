@@ -6,6 +6,7 @@ import { Message } from '@/types/chat';
 import { useMessageSender } from '@/hooks/useMessageSender';
 import { useRouter } from 'next/navigation';
 import { ThreadView } from '@/components/ThreadView';
+import { useUnreadMessages } from '@/hooks/useUnreadMessages';
 
 interface ChatContainerProps {
   currentChannel?: string;
@@ -22,6 +23,7 @@ export function ChatContainer({ currentChannel, selectedUser, user, highlightedM
   const supabase = createClient();
   const { sendMessage } = useMessageSender();
   const router = useRouter();
+  const { markAsRead } = useUnreadMessages(user?.id);
 
   useEffect(() => {
     if (!user) {
@@ -29,6 +31,16 @@ export function ChatContainer({ currentChannel, selectedUser, user, highlightedM
       return;
     }
   }, [user, router]);
+
+  // Mark messages as read when viewing a channel or DM
+  useEffect(() => {
+    if (!user) return;
+    if (currentChannel) {
+      markAsRead(currentChannel);
+    } else if (selectedUser) {
+      markAsRead(undefined, selectedUser);
+    }
+  }, [currentChannel, selectedUser, user]);
 
   const loadMessages = useCallback(async () => {
     if (!user) return;
