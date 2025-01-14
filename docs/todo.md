@@ -1,5 +1,5 @@
 ###TODO
-[ ] Chat Modal
+[X] Chat Modal
 [ ] RAG Chatbot
 [ ] Voice Synthesis
 [ ] Video Synthesis
@@ -24,6 +24,8 @@
 [X] Notification for new messages.
 [ ] shows search result with space on each side.
 [ ] notifications don't show up for yourself.
+[ ] Confirm password
+[?] 4o mini
 
 ###NICE[ ] TO[ ] HAVE
 [ ] Workspaces

@@ -52,11 +52,44 @@ export function useMessageSender() {
         receiver_id: receiverId || undefined
       };
 
-      const { error } = await supabase
+      // First, save to Supabase
+      const { data: newMessage, error } = await supabase
         .from('messages')
-        .insert([messageData]);
+        .insert([messageData])
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // Then, upsert to Pinecone
+      try {
+        const response = await fetch('/api/chat/upsert-message', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: content.trim(),
+            metadata: {
+              message_id: newMessage.id,
+              user_id: userId,
+              channel_id: channelId,
+              receiver_id: receiverId,
+              thread_id: threadId,
+              timestamp: newMessage.created_at,
+              message_type: receiverId ? 'dm' : 'channel'
+            }
+          })
+        });
+
+        if (!response.ok) {
+          console.error('Failed to upsert message to Pinecone:', await response.text());
+        }
+      } catch (pineconeError) {
+        // Log error but don't fail the message send
+        console.error('Error upserting to Pinecone:', pineconeError);
+      }
+
     } catch (error) {
       console.error('Error sending message:', error);
       throw error;

@@ -13,7 +13,7 @@ class ChatService:
             if not api_key:
                 raise ValueError("OPENAI_API_KEY not found in environment variables")
             self.chat = ChatOpenAI(
-                model="gpt-4-turbo-preview",
+                model="gpt-4o-mini",
                 openai_api_key=api_key,
                 temperature=0.7
             )

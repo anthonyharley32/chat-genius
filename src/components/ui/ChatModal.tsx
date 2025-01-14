@@ -18,6 +18,7 @@ export function ChatModal({ isOpen, onClose, userName = "User" }: ChatModalProps
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<AIMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [lastStreamedMessageId, setLastStreamedMessageId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -28,11 +29,17 @@ export function ChatModal({ isOpen, onClose, userName = "User" }: ChatModalProps
     scrollToBottom();
   }, [messages]);
 
+  // Clear lastStreamedMessageId when modal opens/closes
+  useEffect(() => {
+    setLastStreamedMessageId(null);
+  }, [isOpen]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim() || isLoading) return;
 
     const userMessage: AIMessage = {
+      id: Date.now().toString() + '-user',
       role: 'user',
       content: message,
     };
@@ -51,7 +58,11 @@ export function ChatModal({ isOpen, onClose, userName = "User" }: ChatModalProps
         userMessage
       ]);
 
+      const newMessageId = Date.now().toString();
+      setLastStreamedMessageId(newMessageId);
+      
       setMessages(prev => [...prev, {
+        id: newMessageId,
         role: 'assistant',
         content: stream.choices[0].delta.content
       }]);
@@ -105,7 +116,10 @@ export function ChatModal({ isOpen, onClose, userName = "User" }: ChatModalProps
                   }`}
                 >
                   {msg.role === 'assistant' ? (
-                    <Answer text={msg.content} messagesEndRef={messagesEndRef} />
+                    <Answer 
+                      text={msg.content} 
+                      isNew={!!msg.id && msg.id === lastStreamedMessageId} 
+                    />
                   ) : (
                     msg.content
                   )}
