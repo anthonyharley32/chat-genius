@@ -33,5 +33,23 @@ services:
       - /app/node_modules
       - /app/.next
 
+  ai-service:
+    container_name: python-ai
+    build: 
+      context: ./python-backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
+      - PINECONE_API_KEY=${PINECONE_API_KEY}
+      - PINECONE_ENVIRONMENT=${PINECONE_ENVIRONMENT}
+      - PINECONE_INDEX_NAME=${PINECONE_INDEX_NAME}
+    volumes:
+      - ./python-backend:/app
+    depends_on:
+      - web
+
 volumes:
   postgres_data: 
