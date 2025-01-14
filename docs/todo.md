@@ -1,4 +1,12 @@
 ###TODO
+[ ] Chat Modal
+[ ] RAG Chatbot
+[ ] Voice Synthesis
+[ ] Video Synthesis
+[ ] TL;DR Function
+[ ] Avatar Upload with image generation
+
+
 
 ###DEBUG
 [ ] video show thumbnail and plays after refresh.
@@ -6,8 +14,7 @@
 [ ] If you search a message twice, it doesn't highlight.
 [ ] fix multiple users on same computer being logged in.
 [ ] after image send, rerenders
-
-
+[ ] thread indicator not updating in main chat log.
 
 ###OPTIMIZE
 [ ] isolated videos w/ sound
@@ -16,6 +23,7 @@
 [ ] Seperate page mapping (DMs and channels)
 [X] Notification for new messages.
 [ ] shows search result with space on each side.
+[ ] notifications don't show up for yourself.
 
 ###NICE[ ] TO[ ] HAVE
 [ ] Workspaces

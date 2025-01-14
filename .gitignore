@@ -5,3 +5,26 @@ next-env.d.ts
 .next
 .DS_Store
 .env
+.env.*
+!.env.sample
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.env
+.venv
+python-backend/.env
+*.pyc
+
+# Python IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.python-version
