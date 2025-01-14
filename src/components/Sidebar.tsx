@@ -6,6 +6,7 @@ import { statusType, StatusType } from '@/types/status';
 import SearchResults from './SearchResults';
 import { StatusDot } from './StatusDot';
 import { useUnreadMessages } from '@/hooks/useUnreadMessages';
+import { ChatModal } from './ui/ChatModal';
 
 interface SidebarProps {
   channels: { id: string; name: string }[];
@@ -40,6 +41,7 @@ export default function Sidebar({
   const [newChannelName, setNewChannelName] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [activeUserMenu, setActiveUserMenu] = useState<string | null>(null);
+  const [selectedChatUser, setSelectedChatUser] = useState<string | null>(null);
   const { getUnreadCount, markAsRead } = useUnreadMessages(currentUserId);
 
   const handleCreateChannel = () => {
@@ -286,7 +288,7 @@ export default function Sidebar({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  // Handle AI chat action here
+                  setSelectedChatUser(user.id);
                   setActiveUserMenu(null);
                 }}
                 className="w-full px-4 py-2 text-sm text-left text-gray-200 hover:bg-gray-700 hover:text-white transition-colors flex items-center gap-2 group"
@@ -331,6 +333,13 @@ export default function Sidebar({
           </div>
         )
       ))}
+
+      {/* Chat Modal */}
+      <ChatModal 
+        isOpen={selectedChatUser !== null}
+        onClose={() => setSelectedChatUser(null)}
+        userName={users.find(u => u.id === selectedChatUser)?.full_name}
+      />
     </>
   );
 } 

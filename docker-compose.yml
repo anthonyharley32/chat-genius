@@ -10,6 +10,8 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
 
   studio:
     container_name: supabase-studio
@@ -20,6 +22,8 @@ services:
       SUPABASE_URL: http://localhost:8000
       STUDIO_PG_META_URL: http://localhost:5432
       POSTGRES_PASSWORD: postgres
+    networks:
+      - app-network
 
   web:
     container_name: nextjs-app
@@ -32,6 +36,8 @@ services:
       - .:/app
       - /app/node_modules
       - /app/.next
+    networks:
+      - app-network
 
   ai-service:
     container_name: python-ai
@@ -40,16 +46,18 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
-    environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
-      - PINECONE_API_KEY=${PINECONE_API_KEY}
-      - PINECONE_ENVIRONMENT=${PINECONE_ENVIRONMENT}
-      - PINECONE_INDEX_NAME=${PINECONE_INDEX_NAME}
+    env_file:
+      - .env.local
     volumes:
       - ./python-backend:/app
     depends_on:
       - web
+    networks:
+      - app-network
 
 volumes:
-  postgres_data: 
+  postgres_data:
+
+networks:
+  app-network:
+    driver: bridge 

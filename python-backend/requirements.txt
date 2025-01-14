@@ -1,0 +1,9 @@
+fastapi
+langchain
+langchain-openai
+python-dotenv
+uvicorn
+starlette
+pydantic>=2.0.0
+python-multipart
+aiohttp

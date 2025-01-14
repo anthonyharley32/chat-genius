@@ -144,11 +144,7 @@ export function useUnreadMessages(userId: string) {
         // Store cleanup function
         cleanupRef.current = debouncedUpdate();
       })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('Successfully subscribed to unread messages');
-        }
-      });
+    
 
     // Reset notification count daily
     const midnight = new Date();

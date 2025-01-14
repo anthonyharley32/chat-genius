@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM --platform=$BUILDPLATFORM python:3.11-slim
 
 WORKDIR /app
 
@@ -9,10 +9,18 @@ RUN apt-get update && apt-get install -y \
 
 # Copy requirements first to leverage Docker cache
 COPY requirements.txt .
+
+# Install Python packages
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Install uvicorn separately
+RUN pip install --no-cache-dir uvicorn
 
 # Copy the rest of the application
 COPY . .
 
-# Run the FastAPI app with uvicorn
+# Make sure the command is available
+RUN which uvicorn
+
+# Run the FastAPI app
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
