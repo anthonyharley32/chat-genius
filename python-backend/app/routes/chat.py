@@ -1,5 +1,5 @@
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException # type: ignore
+from pydantic import BaseModel # type: ignore
 import logging
 import traceback
 from ..services.chat_service import ChatService

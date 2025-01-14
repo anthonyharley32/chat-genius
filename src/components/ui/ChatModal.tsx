@@ -5,6 +5,7 @@ import { useState, useRef, useEffect } from 'react';
 import { ArrowUp, Paperclip } from 'lucide-react';
 import { streamChatCompletion } from '@/lib/openai';
 import { AIMessage } from '@/types/ai-chat';
+import { Answer } from './Answer';
 
 interface ChatModalProps {
   isOpen: boolean;
@@ -103,7 +104,11 @@ export function ChatModal({ isOpen, onClose, userName = "User" }: ChatModalProps
                       : 'bg-gray-100 text-gray-900'
                   }`}
                 >
-                  {msg.content}
+                  {msg.role === 'assistant' ? (
+                    <Answer text={msg.content} messagesEndRef={messagesEndRef} />
+                  ) : (
+                    msg.content
+                  )}
                 </div>
               </div>
             ))}

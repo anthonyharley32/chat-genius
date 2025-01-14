@@ -1,6 +1,6 @@
-from langchain.vectorstores import Pinecone
-from langchain.embeddings.openai import OpenAIEmbeddings
-import pinecone
+from langchain.vectorstores import Pinecone # type: ignore
+from langchain_openai import OpenAIEmbeddings # type: ignore
+import pinecone # type: ignore
 import os
 
 class MemoryService:

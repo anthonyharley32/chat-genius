@@ -1,5 +1,5 @@
-from langchain_openai import ChatOpenAI
-from langchain.schema import HumanMessage
+from langchain_openai import ChatOpenAI # type: ignore
+from langchain.schema import HumanMessage # type: ignore
 import os
 import logging
 
