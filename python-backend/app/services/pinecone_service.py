@@ -87,8 +87,47 @@ class PineconeService:
             raise
 
     async def query_similar(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
-        # We'll implement this later for AI chat functionality
-        pass
+        """
+        Search for messages similar to the query using semantic search.
+        
+        Args:
+            query: The search query
+            top_k: Number of similar messages to return
+            
+        Returns:
+            List of similar messages with their metadata and similarity scores
+        """
+        try:
+            logger.info(f"Searching for messages similar to: {query[:50]}...")
+            
+            # Generate embedding for the query
+            logger.info("Generating query embedding...")
+            query_embedding = await self.embeddings.aembed_query(query)
+            logger.info("Query embedding generated successfully")
+            
+            # Search in Pinecone
+            logger.info(f"Searching Pinecone for top {top_k} similar messages...")
+            results = await self.vector_store.asimilarity_search_with_score(
+                query=query,
+                k=top_k
+            )
+            
+            # Format results
+            formatted_results = []
+            for doc, score in results:
+                formatted_results.append({
+                    "content": doc.page_content,
+                    "metadata": doc.metadata,
+                    "similarity_score": score
+                })
+            
+            logger.info(f"Found {len(formatted_results)} similar messages")
+            return formatted_results
+            
+        except Exception as e:
+            logger.error(f"Error searching similar messages: {str(e)}")
+            logger.error(f"Full traceback: {traceback.format_exc()}")
+            raise
         
     async def batch_process_messages(self, batch_size: int = 100) -> Dict[str, Any]:
         """
@@ -109,59 +148,72 @@ class PineconeService:
         }
 
         try:
-            # Get all messages from both channels and DMs
-            channel_messages = self.supabase.table('messages').select('*').execute()
-            dm_messages = self.supabase.table('direct_messages').select('*').execute()
-
+            # Get all messages (both channel messages and DMs)
+            logger.info("Fetching messages from Supabase...")
+            messages_response = self.supabase.table('messages').select('*').execute()
             all_messages = []
             
-            # Process channel messages
-            for msg in channel_messages.data:
-                all_messages.append({
-                    "content": msg["content"],
-                    "metadata": {
-                        "message_id": msg["id"],
-                        "channel_id": msg["channel_id"],
-                        "user_id": msg["user_id"],
-                        "timestamp": msg["created_at"],
-                        "message_type": "channel"
-                    }
-                })
+            # Process all messages
+            message_count = len(messages_response.data)
+            logger.info(f"Found {message_count} messages to process")
+            
+            for msg in messages_response.data:
+                metadata = {
+                    "message_id": msg["id"],
+                    "user_id": msg["user_id"],
+                    "timestamp": msg["created_at"],
+                    "message_type": "dm" if msg["is_direct_message"] else "channel"
+                }
+                
+                # Add channel_id or receiver_id based on message type
+                if msg["is_direct_message"]:
+                    metadata["receiver_id"] = msg["receiver_id"]
+                else:
+                    metadata["channel_id"] = msg["channel_id"]
 
-            # Process DM messages
-            for msg in dm_messages.data:
                 all_messages.append({
                     "content": msg["content"],
-                    "metadata": {
-                        "message_id": msg["id"],
-                        "conversation_id": msg["conversation_id"],
-                        "sender_id": msg["sender_id"],
-                        "receiver_id": msg["receiver_id"],
-                        "timestamp": msg["created_at"],
-                        "message_type": "dm"
-                    }
+                    "metadata": metadata
                 })
 
             # Process messages in batches
+            total_batches = (len(all_messages) + batch_size - 1) // batch_size
+            logger.info(f"Processing {len(all_messages)} messages in {total_batches} batches")
+            
             for i in range(0, len(all_messages), batch_size):
-                batch = all_messages[i:i + batch_size]
+                current_batch = i // batch_size + 1
+                logger.info(f"Processing batch {current_batch}/{total_batches}")
                 
-                for msg in batch:
+                batch = all_messages[i:i + batch_size]
+                batch_start_time = datetime.now()
+                
+                for msg_index, msg in enumerate(batch, 1):
                     try:
+                        logger.info(f"Processing message {i + msg_index}/{len(all_messages)}")
                         await self.upsert_message(msg["content"], msg["metadata"])
                         stats["successful"] += 1
                     except Exception as e:
-                        print(f"Error processing message: {e}")
+                        logger.error(f"Error processing message: {e}")
+                        logger.error(f"Full traceback: {traceback.format_exc()}")
                         stats["failed"] += 1
                     
                     stats["total_processed"] += 1
+                
+                batch_duration = datetime.now() - batch_start_time
+                logger.info(f"Batch {current_batch} completed in {batch_duration.total_seconds():.2f} seconds")
                 
                 # Small delay to prevent overwhelming the API
                 await asyncio.sleep(0.1)
 
         except Exception as e:
-            print(f"Batch processing error: {e}")
+            logger.error(f"Batch processing error: {e}")
+            logger.error(f"Full traceback: {traceback.format_exc()}")
             
         stats["end_time"] = datetime.now()
+        duration = stats["end_time"] - stats["start_time"]
+        logger.info(f"Migration completed in {duration.total_seconds():.2f} seconds")
+        logger.info(f"Total processed: {stats['total_processed']}")
+        logger.info(f"Successful: {stats['successful']}")
+        logger.info(f"Failed: {stats['failed']}")
         return stats
         

@@ -8,12 +8,19 @@ export async function POST(request: Request) {
     console.log('Making request to:', `${apiUrl}/api/chat`);
     console.log('With body:', body);
 
+    if (!body.user_id) {
+      throw new Error('user_id is required');
+    }
+
     const response = await fetch(`${apiUrl}/api/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        message: body.message,
+        user_id: body.user_id
+      }),
     });
 
     if (!response.ok) {

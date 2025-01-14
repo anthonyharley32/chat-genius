@@ -36,12 +36,19 @@ async def test_pinecone():
 async def chat(request: ChatRequest):
     try:
         logger.info("=== Chat Request Received ===")
-        response = await chat_service.generate_response(request.message, request.user_id)
+        logger.info(f"Message: {request.message}")
+        logger.info(f"User ID: {request.user_id}")
+        
+        response = await chat_service.generate_response(
+            message=request.message,
+            user_id=request.user_id
+        )
+        logger.info("Response generated successfully")
         return {"response": response}
     except Exception as e:
         logger.error(f"Error in chat endpoint: {type(e).__name__}")
         logger.error(f"Full traceback: {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/batch-process")
 async def batch_process_messages():
