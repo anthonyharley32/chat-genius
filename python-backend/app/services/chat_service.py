@@ -24,28 +24,35 @@ class ChatService:
             logger.error("Error initializing ChatService")
             raise
 
-    def format_context(self, similar_messages: List[Dict[str, Any]]) -> str:
+    def format_context(self, similar_messages: List[Dict[str, Any]], threshold: float = 0.7) -> str:
         """Format similar messages into a context string"""
         if not similar_messages:
             return ""
             
+        # Filter messages by similarity threshold
+        filtered_messages = [msg for msg in similar_messages if msg["similarity_score"] >= threshold]
+        
+        if not filtered_messages:
+            return ""
+            
         context_parts = ["Here are some relevant previous messages:"]
-        for msg in similar_messages:
+        for msg in filtered_messages:
             metadata = msg["metadata"]
             message_type = metadata["message_type"]
             timestamp = metadata["timestamp"]
             content = msg["content"]
             user_name = metadata.get("user_name", "Unknown User")
+            similarity_percentage = msg["similarity_score"] * 100
             
             if message_type == "channel":
                 channel_name = metadata.get("channel_name", "Unknown Channel")
                 context_parts.append(
-                    f"[Channel #{channel_name} from {user_name} at {timestamp}]: {content}"
+                    f"[Channel #{channel_name} from {user_name} at {timestamp}, relevancy: {similarity_percentage:.0f}%]: {content}"
                 )
             else:
                 receiver_name = metadata.get("receiver_name", "Unknown User")
                 context_parts.append(
-                    f"[DM with {receiver_name} from {user_name} at {timestamp}]: {content}"
+                    f"[DM with {receiver_name} from {user_name} at {timestamp}, relevancy: {similarity_percentage:.0f}%]: {content}"
                 )
                 
         return "\n".join(context_parts)

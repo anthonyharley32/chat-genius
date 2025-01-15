@@ -8,6 +8,7 @@
 [X] RAG Chatbot
 
 ###DEBUG
+[ ] Make sidebar scrollable.
 [ ] Video show thumbnail and plays after refresh.
 [ ] 8s delay for message reactions and thread count in main chat log. (pushes log down)
 [ ] If you search a message twice, it doesn't highlight.
@@ -26,6 +27,7 @@
 [ ] Confirm password
 [ ] Code blocks content select.
 [ ] LLM streaming
+[ ] Perplexity style message reference system. #
 [X] AI Chat Title Header.
 [X] 4o mini
 [X] Notification for new messages.
