@@ -24,7 +24,7 @@ class ChatService:
             logger.error("Error initializing ChatService")
             raise
 
-    def format_context(self, similar_messages: List[Dict[str, Any]], threshold: float = 0.7) -> str:
+    def format_context(self, similar_messages: List[Dict[str, Any]], threshold: float = 0.22) -> str:
         """Format similar messages into a context string"""
         if not similar_messages:
             return ""
@@ -60,7 +60,7 @@ class ChatService:
     async def generate_response(self, message: str, user_id: str) -> str:
         try:
             logger.debug("Searching for similar messages...")
-            similar_messages = await self.pinecone_service.query_similar(message, top_k=3)
+            similar_messages = await self.pinecone_service.query_similar(message, top_k=5)
             
             # Format context from similar messages
             context = self.format_context(similar_messages)
