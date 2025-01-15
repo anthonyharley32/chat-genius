@@ -2,11 +2,12 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowUp } from 'lucide-react';
+import { ArrowUp, Maximize2, Minimize2, X } from 'lucide-react';
 import { AIMessage } from '@/types/ai-chat';
 import { Citation, CitationReference } from '@/types/citations';
 import { useAIChat } from '@/hooks/useAIChat';
 import { useUser } from '@/hooks/useUser';
+import { useMessageHighlight } from '@/hooks/useMessageHighlight';
 import ReactMarkdown from 'react-markdown';
 import { MessageHighlight } from '@/components/ui/MessageHighlight';
 import { CitationComponent } from '@/components/ui/CitationComponent';
@@ -97,6 +98,8 @@ export function ChatModal({ isOpen, onClose, userName = "User" }: ChatModalProps
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<AIMessage[]>([]);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+  const [isMinimized, setIsMinimized] = useState(false);
+  const messageRef = useMessageHighlight(highlightedMessageId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { sendMessage, isLoading, error } = useAIChat();
   const { user } = useUser();
@@ -126,12 +129,8 @@ export function ChatModal({ isOpen, onClose, userName = "User" }: ChatModalProps
   }, [isOpen, onClose]);
 
   const handleCitationClick = (messageId: string) => {
-    const messageElement = document.getElementById(`message-${messageId}`);
-    if (messageElement) {
-      messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setHighlightedMessageId(messageId);
-      setTimeout(() => setHighlightedMessageId(null), 2000);
-    }
+    setHighlightedMessageId(messageId);
+    setIsMinimized(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -167,23 +166,69 @@ export function ChatModal({ isOpen, onClose, userName = "User" }: ChatModalProps
 
   if (!isOpen) return null;
 
-  const modalContent = (
+  const modalContent = isMinimized ? (
+    <div className="fixed bottom-4 right-4 z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 flex items-center space-x-4">
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          AI Chat
+        </span>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setIsMinimized(false)}
+            className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            aria-label="Maximize chat"
+          >
+            <Maximize2 className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+          </button>
+          <button
+            onClick={onClose}
+            className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            aria-label="Close chat"
+          >
+            <X className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : (
     <>
       <div 
         className="fixed inset-0 bg-black/20" 
-        onClick={onClose}
+        onClick={() => setIsMinimized(true)}
       />
       <div 
         className="fixed inset-0 flex items-center justify-center pointer-events-none"
       >
         <div 
-          className="bg-white rounded-lg shadow-2xl pointer-events-auto max-h-[90vh] overflow-y-auto w-[75vw]"
+          className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl pointer-events-auto max-h-[90vh] overflow-y-auto w-[75vw]"
           onClick={e => e.stopPropagation()}
         >
           <div className="flex flex-col h-[80vh]">
-            <div className="p-4 border-b">
-              <h2 className="text-xl font-semibold text-gray-900">{userName.split(' ')[0]}'s AI Assistant</h2>
-              <p className="text-sm text-gray-500">Ask me anything about my workspace</p>
+            <div className="p-4 border-b flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                  {userName.split(' ')[0]}'s AI Assistant
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Ask me anything about my workspace
+                </p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setIsMinimized(true)}
+                  className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  aria-label="Minimize chat"
+                >
+                  <Minimize2 className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                </button>
+                <button
+                  onClick={onClose}
+                  className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  aria-label="Close chat"
+                >
+                  <X className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                </button>
+              </div>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {!user && (
@@ -198,6 +243,7 @@ export function ChatModal({ isOpen, onClose, userName = "User" }: ChatModalProps
                 >
                   <div
                     id={`message-${msg.id}`}
+                    ref={msg.id === highlightedMessageId ? messageRef : undefined}
                     className={`flex ${
                       msg.role === 'user' ? 'justify-end' : 'justify-start'
                     }`}
