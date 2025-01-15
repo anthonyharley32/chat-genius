@@ -3,7 +3,7 @@
 [ ] Video Synthesis
 [ ] TL;DR Function
 [ ] Avatar Upload with image generation
-[ ] User selevtive Vector Storage
+[ ] User selective Vector Storage
 [X] RAG prompting
 [X] Chat Modal
 [X] RAG Chatbot
@@ -17,14 +17,13 @@
 [ ] thread indicator not updating in main chat log.
 [X] Add channel metadata to pinecone and system prompt.
 [X] Reload loses spot
-[ ] Citation UI
+[X] Citation UI
 [ ] Citation message nav + highlight
 [X] Sidebar scrollable
 
 
 
 ###UI
-[ ] Minimized AI chat = blue
 [ ] Inline citations highlight citation card.
 [ ] Raise minimized AI chat above message input.
 [ ] isolated videos w/ sound
@@ -34,6 +33,7 @@
 [ ] Mobile compatible
 [ ] Waiting for AI response indicator.
 [ ] Sidebar scrollbar visibility.
+[ ] Inline citations next to periods.
 [X] Perplexity style message reference system.
 [X] AI Chat Title Header.
 [X] 4o mini
@@ -42,6 +42,8 @@
 [X] Markdown formatting
 [X] notifications don't show up for yourself.
 [X] Confirm password
+[X] Minimized AI chat = blue
+
 
 
 

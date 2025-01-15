@@ -20,9 +20,18 @@ interface ChatModalProps {
 }
 
 function formatMessageWithCitations(content: string, references: CitationReference[], onCitationClick: (citationId: string) => void) {
-  // Create a mapping of original reference numbers to new ones
-  const refNumberMapping = new Map();
-  let currentNumber = 1;
+  // Create a mapping of reference numbers to citation IDs
+  const refToCitationMap = new Map(
+    references.map(ref => [ref.referenceText, ref.citationId])
+  );
+  
+  // Create a sequential mapping for display
+  const uniqueRefs = Array.from(new Set(
+    content.match(/\{ref:\d+\}/g)?.map(ref => ref.match(/\d+/)?.[0]).filter(Boolean) || []
+  ));
+  const displayNumberMap = new Map(
+    uniqueRefs.map((ref, index) => [ref, index + 1])
+  );
   
   // Split content at citation markers
   const parts = content.split(/(\{ref:\d+\})/);
@@ -31,25 +40,21 @@ function formatMessageWithCitations(content: string, references: CitationReferen
     // Check if this part is a citation marker
     const match = part.match(/\{ref:(\d+)\}/);
     if (match) {
-      const originalRefNumber = match[1];
-      // Get or create new reference number
-      if (!refNumberMapping.has(originalRefNumber)) {
-        refNumberMapping.set(originalRefNumber, currentNumber++);
-      }
-      const newRefNumber = refNumberMapping.get(originalRefNumber);
+      const refNumber = match[1];
+      const citationId = refToCitationMap.get(refNumber);
+      const displayNumber = displayNumberMap.get(refNumber);
       
-      const reference = references.find(ref => ref.referenceText === newRefNumber.toString());
-      if (reference) {
+      if (citationId && displayNumber) {
         return (
           <button
             key={index}
-            onClick={() => onCitationClick(reference.citationId)}
+            onClick={() => onCitationClick(citationId)}
             className="inline-flex items-center px-1.5 py-0.5 mx-0.5 bg-blue-100 dark:bg-blue-900/30 
                      text-blue-700 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-800/30 
                      transition-colors duration-200 text-sm"
-            aria-label={`View citation ${newRefNumber}`}
+            aria-label={`View citation ${displayNumber}`}
           >
-            [{newRefNumber}]
+            [{displayNumber}]
           </button>
         );
       }
@@ -63,15 +68,13 @@ function getUsedCitations(content: string, citations: Citation[], references: Ci
   const markers = content.match(/\{ref:\d+\}/g) || [];
   const usedRefNumbers = markers.map(marker => marker.match(/\d+/)?.[0]).filter(Boolean);
   
-  // Create a mapping of original reference numbers to new sequential numbers
-  const refNumberMapping = new Map();
-  usedRefNumbers.forEach((refNum, index) => {
-    if (!refNumberMapping.has(refNum)) {
-      refNumberMapping.set(refNum, (index + 1).toString());
-    }
-  });
+  // Create sequential display numbers
+  const uniqueRefs = Array.from(new Set(usedRefNumbers));
+  const displayNumberMap = new Map(
+    uniqueRefs.map((ref, index) => [ref, (index + 1).toString()])
+  );
   
-  // Get the citation IDs that are actually used and create new references
+  // Get the citation IDs that are actually used
   const usedCitationIds = new Set();
   const newReferences: CitationReference[] = [];
   
@@ -80,9 +83,10 @@ function getUsedCitations(content: string, citations: Citation[], references: Ci
     if (originalRef) {
       usedCitationIds.add(originalRef.citationId);
       if (!newReferences.some(ref => ref.citationId === originalRef.citationId)) {
+        // Create new reference with sequential display number but keep original citationId
         newReferences.push({
           ...originalRef,
-          referenceText: refNumberMapping.get(refNum)!
+          referenceText: displayNumberMap.get(refNum)!
         });
       }
     }
@@ -98,6 +102,7 @@ export function ChatModal({ isOpen, onClose, userName = "User" }: ChatModalProps
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<AIMessage[]>([]);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+  const [highlightedCitationId, setHighlightedCitationId] = useState<string | undefined>(undefined);
   const [isMinimized, setIsMinimized] = useState(false);
   const messageRef = useMessageHighlight(highlightedMessageId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -128,9 +133,22 @@ export function ChatModal({ isOpen, onClose, userName = "User" }: ChatModalProps
     };
   }, [isOpen, onClose]);
 
-  const handleCitationClick = (messageId: string) => {
-    setHighlightedMessageId(messageId);
-    setIsMinimized(true);
+  const handleCitationClick = (citationId: string) => {
+    console.log('Citation click - citationId:', citationId);
+    const allCitations = messages.flatMap(msg => msg.citations || []);
+    console.log('All available citations:', JSON.stringify(allCitations, null, 2));
+    
+    // Find the citation by its ID
+    const citation = allCitations.find(c => c.id === citationId);
+    console.log('Found citation:', citation);
+    
+    if (citation) {
+      setHighlightedCitationId(citation.id);
+      // Don't navigate to message when clicking inline citations
+    } else {
+      console.log('No citation found - clearing highlight');
+      setHighlightedCitationId(undefined);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -270,7 +288,7 @@ export function ChatModal({ isOpen, onClose, userName = "User" }: ChatModalProps
                                 (citationId) => {
                                   const citation = msg.citations?.find(c => c.id === citationId);
                                   if (citation) {
-                                    handleCitationClick(citation.messageId);
+                                    handleCitationClick(citation.id);
                                   }
                                 }
                               )
@@ -320,6 +338,7 @@ export function ChatModal({ isOpen, onClose, userName = "User" }: ChatModalProps
                                 references={references}
                                 minimizeAIChat={onClose}
                                 className="mt-4 border-t pt-4"
+                                highlightedCitationId={highlightedCitationId}
                               />
                             ) : null;
                           })()}

@@ -33,13 +33,15 @@ function CitationCard({
   minimizeAIChat,
   onMouseEnter,
   onMouseLeave,
-  showPreview
+  showPreview,
+  highlighted = false
 }: { 
   citation: Citation;
   minimizeAIChat?: () => void;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
   showPreview: boolean;
+  highlighted?: boolean;
 }) {
   const { navigate } = useMessageNavigation();
 
@@ -55,19 +57,29 @@ function CitationCard({
     >
       <button
         onClick={handleClick}
-        className="w-full text-left p-3 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 
-                 dark:hover:bg-gray-700 transition-colors duration-200"
+        className={cn(
+          "w-full text-left p-3 rounded-lg transition-all duration-200",
+          highlighted 
+            ? "bg-blue-600 hover:bg-blue-700 text-white citation-pop" 
+            : "bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700"
+        )}
         aria-label={`View referenced message from ${citation.metadata.userName}`}
       >
         <div className="flex justify-between items-start mb-1">
           <span className="text-sm font-medium truncate">
             {citation.metadata.userName}
           </span>
-          <span className="text-xs text-gray-500 whitespace-nowrap ml-2">
+          <span className={cn(
+            "text-xs whitespace-nowrap ml-2",
+            highlighted ? "text-blue-100" : "text-gray-500"
+          )}>
             {(citation.similarityScore * 100).toFixed(1)}%
           </span>
         </div>
-        <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2">
+        <p className={cn(
+          "text-sm line-clamp-2",
+          highlighted ? "text-blue-50" : "text-gray-700 dark:text-gray-300"
+        )}>
           {citation.previewText}
         </p>
       </button>
@@ -78,10 +90,12 @@ function CitationCard({
 
 function ReferenceList({ 
   citations, 
-  minimizeAIChat 
+  minimizeAIChat,
+  highlightedCitationId
 }: { 
   citations: Citation[]; 
   minimizeAIChat?: () => void;
+  highlightedCitationId?: string;
 }) {
   const [hoveredCitation, setHoveredCitation] = useState<string | null>(null);
   const [showAllCitations, setShowAllCitations] = useState(false);
@@ -101,6 +115,7 @@ function ReferenceList({
             onMouseEnter={() => setHoveredCitation(citation.id)}
             onMouseLeave={() => setHoveredCitation(null)}
             showPreview={hoveredCitation === citation.id}
+            highlighted={citation.id === highlightedCitationId}
           />
         ))}
       </div>
@@ -127,6 +142,7 @@ function ReferenceList({
                     onMouseEnter={() => setHoveredCitation(citation.id)}
                     onMouseLeave={() => setHoveredCitation(null)}
                     showPreview={hoveredCitation === citation.id}
+                    highlighted={citation.id === highlightedCitationId}
                   />
                 ))}
               </div>
@@ -150,13 +166,20 @@ export function CitationComponent({
   citations,
   references,
   minimizeAIChat,
-  className
-}: CitationComponentProps) {
+  className,
+  highlightedCitationId
+}: CitationComponentProps & {
+  highlightedCitationId?: string;
+}) {
   const { navigate } = useMessageNavigation();
 
   return (
     <div className={cn("space-y-4", className)}>
-      <ReferenceList citations={citations} minimizeAIChat={minimizeAIChat} />
+      <ReferenceList 
+        citations={citations} 
+        minimizeAIChat={minimizeAIChat} 
+        highlightedCitationId={highlightedCitationId}
+      />
     </div>
   );
 } 
