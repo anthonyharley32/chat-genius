@@ -35,11 +35,18 @@ class ChatService:
             message_type = metadata["message_type"]
             timestamp = metadata["timestamp"]
             content = msg["content"]
+            user_name = metadata.get("user_name", "Unknown User")
             
             if message_type == "channel":
-                context_parts.append(f"[Channel message at {timestamp}]: {content}")
+                channel_name = metadata.get("channel_name", "Unknown Channel")
+                context_parts.append(
+                    f"[Channel #{channel_name} from {user_name} at {timestamp}]: {content}"
+                )
             else:
-                context_parts.append(f"[Direct message at {timestamp}]: {content}")
+                receiver_name = metadata.get("receiver_name", "Unknown User")
+                context_parts.append(
+                    f"[DM with {receiver_name} from {user_name} at {timestamp}]: {content}"
+                )
                 
         return "\n".join(context_parts)
 

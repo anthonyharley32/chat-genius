@@ -7,8 +7,6 @@
 [X] Chat Modal
 [X] RAG Chatbot
 
-
-
 ###DEBUG
 [ ] Video show thumbnail and plays after refresh.
 [ ] 8s delay for message reactions and thread count in main chat log. (pushes log down)
@@ -16,6 +14,7 @@
 [ ] fix multiple users on same computer being logged in.
 [ ] after image send, rerenders
 [ ] thread indicator not updating in main chat log.
+[X] Add channel metadata to pinecone and system prompt.
 [X] Reload loses spot
 
 ###OPTIMIZE
@@ -38,17 +37,11 @@
 
 
 
-
 ###NICE[ ] TO[ ] HAVE
 [ ] Workspaces
 [ ] Poll creation
 [ ] navbar pp hover options
 [ ] Allow login with email or username
-
-
-
-
-
 
 
 ###UTILITIES

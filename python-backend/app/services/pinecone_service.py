@@ -148,28 +148,40 @@ class PineconeService:
         }
 
         try:
-            # Get all messages (both channel messages and DMs)
-            logger.info("Fetching messages from Supabase...")
+            # Get all messages
             messages_response = self.supabase.table('messages').select('*').execute()
+            
+            # Fetch all channels and cache them
+            channels_response = self.supabase.table('channels').select('id, name').execute()
+            channel_map = {str(channel['id']): channel['name'] for channel in channels_response.data}
+            
+            # Fetch all users and cache them
+            users_response = self.supabase.table('users').select('id, username').execute()
+            user_map = {str(user['id']): user['username'] for user in users_response.data}
+            
             all_messages = []
-            
-            # Process all messages
-            message_count = len(messages_response.data)
-            logger.info(f"Found {message_count} messages to process")
-            
             for msg in messages_response.data:
                 metadata = {
                     "message_id": msg["id"],
                     "user_id": msg["user_id"],
+                    "user_name": user_map.get(str(msg["user_id"]), "Unknown User"),
                     "timestamp": msg["created_at"],
                     "message_type": "dm" if msg["is_direct_message"] else "channel"
                 }
                 
-                # Add channel_id or receiver_id based on message type
+                # Add channel or receiver info with both ID and name
                 if msg["is_direct_message"]:
-                    metadata["receiver_id"] = msg["receiver_id"]
+                    receiver_id = str(msg["receiver_id"])
+                    metadata.update({
+                        "receiver_id": receiver_id,
+                        "receiver_name": user_map.get(receiver_id, "Unknown User")
+                    })
                 else:
-                    metadata["channel_id"] = msg["channel_id"]
+                    channel_id = str(msg["channel_id"])
+                    metadata.update({
+                        "channel_id": channel_id,
+                        "channel_name": channel_map.get(channel_id, "Unknown Channel")
+                    })
 
                 all_messages.append({
                     "content": msg["content"],
