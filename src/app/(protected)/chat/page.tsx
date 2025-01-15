@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import Sidebar from '@/components/Sidebar';
 import { ChatContainer } from '@/components/ChatContainer';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useUserStore } from '@/store/userStore';
 
 export default function ChatPage() {
@@ -17,7 +17,42 @@ export default function ChatPage() {
   const supabase = createClient();
   const [user, setUser] = useState<any>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
   const avatar = useUserStore((state) => state.avatar);
+
+  // Function to update URL with current selection
+  const updateURL = (type: 'channel' | 'dm', id: string | null) => {
+    const params = new URLSearchParams();
+    if (type === 'channel' && id) {
+      params.set('type', 'channel');
+      params.set('channelId', id);
+    } else if (type === 'dm' && id) {
+      params.set('type', 'dm');
+      params.set('userId', id);
+    }
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
+  // Effect to read URL params on mount and after auth
+  useEffect(() => {
+    if (!user) return;
+
+    const type = searchParams.get('type');
+    const channelId = searchParams.get('channelId');
+    const userId = searchParams.get('userId');
+
+    if (type === 'channel' && channelId) {
+      setCurrentChannel(channelId);
+      setSelectedUser(null);
+    } else if (type === 'dm' && userId) {
+      setSelectedUser(userId);
+      setCurrentChannel('');
+    } else {
+      // Only load initial channel if no URL params exist
+      loadInitialChannel();
+    }
+  }, [searchParams, user]);
 
   // Fetch user
   useEffect(() => {
@@ -69,27 +104,19 @@ export default function ChatPage() {
     };
   }, [user]);
 
-  // Load initial channel
-  useEffect(() => {
-    if (!user) return;
+  // Move loadInitialChannel to a separate function
+  const loadInitialChannel = async () => {
+    const { data: channels } = await supabase
+      .from('channels')
+      .select('*')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .single();
 
-    const loadInitialChannel = async () => {
-      const { data: channels } = await supabase
-        .from('channels')
-        .select('*')
-        .order('created_at', { ascending: true })
-        .limit(1)
-        .single();
-
-      if (channels) {
-        setCurrentChannel(channels.id);
-      }
-    };
-
-    if (!currentChannel && !selectedUser) {
-      loadInitialChannel();
+    if (channels) {
+      setCurrentChannel(channels.id);
     }
-  }, [currentChannel, selectedUser, user]);
+  };
 
   // Create a new channel
   const handleCreateChannel = async (name: string) => {
@@ -131,6 +158,22 @@ export default function ChatPage() {
     setHighlightedMessageId(messageId);
   };
 
+  // Update the channel selection handler
+  const handleChannelSelect = (channelId: string) => {
+    setCurrentChannel(channelId);
+    setSelectedUser(null);
+    setHighlightedMessageId(null);
+    updateURL('channel', channelId);
+  };
+
+  // Update the user selection handler
+  const handleUserSelect = (userId: string) => {
+    setSelectedUser(userId);
+    setCurrentChannel('');
+    setHighlightedMessageId(null);
+    updateURL('dm', userId);
+  };
+
   if (!user) {
     return null;
   }
@@ -142,16 +185,8 @@ export default function ChatPage() {
         users={users}
         currentChannel={currentChannel}
         selectedUser={selectedUser}
-        onChannelSelect={(channelId) => {
-          setCurrentChannel(channelId);
-          setSelectedUser(null);
-          setHighlightedMessageId(null);
-        }}
-        onUserSelect={(userId) => {
-          setSelectedUser(userId);
-          setCurrentChannel('');
-          setHighlightedMessageId(null);
-        }}
+        onChannelSelect={handleChannelSelect}
+        onUserSelect={handleUserSelect}
         onCreateChannel={handleCreateChannel}
         onNavigateToMessage={handleNavigateToMessage}
         currentUserId={user.id}
