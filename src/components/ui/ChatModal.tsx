@@ -1,7 +1,7 @@
 'use client';
 
 import { Modal } from './Modal';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, use } from 'react';
 import { ArrowUp } from 'lucide-react';
 import { AIMessage } from '@/types/ai-chat';
 import { useAIChat } from '@/hooks/useAIChat';
@@ -68,6 +68,10 @@ export function ChatModal({ isOpen, onClose, userName = "User" }: ChatModalProps
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
       <div className="flex flex-col h-[80vh] max-w-2xl mx-auto">
+        <div className="p-4 border-b">
+          <h2 className="text-xl font-semibold text-gray-900">{userName.split(' ')[0]}'s AI Assistant</h2>
+          <p className="text-sm text-gray-500">Ask me anything about my workspace</p>
+        </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {!user && (
             <div className="p-2 bg-yellow-100 text-yellow-700 rounded">

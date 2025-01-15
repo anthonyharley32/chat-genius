@@ -71,5 +71,5 @@ body {
 }
 
 .animate-slow-pulse {
-  animation: slow-pulse 5s linear infinite;
+  animation: slow-pulse 3s linear infinite;
 }
