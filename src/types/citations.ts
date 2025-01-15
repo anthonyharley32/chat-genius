@@ -7,6 +7,11 @@ export interface Citation {
     timestamp: string;
     userId: string;
     userName: string;
+    channelId?: string;
+    channelName?: string;
+    isDirectMessage?: boolean;
+    receiverId?: string;
+    receiverName?: string;
   }
 }
 

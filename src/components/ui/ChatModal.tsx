@@ -11,6 +11,7 @@ import { useMessageHighlight } from '@/hooks/useMessageHighlight';
 import ReactMarkdown from 'react-markdown';
 import { MessageHighlight } from '@/components/ui/MessageHighlight';
 import { CitationComponent } from '@/components/ui/CitationComponent';
+import { useRouter } from 'next/navigation';
 
 interface ChatModalProps {
   isOpen: boolean;
@@ -108,6 +109,18 @@ export function ChatModal({ isOpen, onClose, userName = "User" }: ChatModalProps
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { sendMessage, isLoading, error } = useAIChat();
   const { user } = useUser();
+  const router = useRouter();
+
+  const handleNavigateToMessage = (messageId: string, channelId: string | null, userId: string | null) => {
+    if (channelId) {
+      // Navigate to channel
+      router.push(`/chat?type=channel&channelId=${channelId}`);
+    } else if (userId) {
+      // Navigate to DM
+      router.push(`/chat?type=dm&userId=${userId}`);
+    }
+    setHighlightedMessageId(messageId);
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -339,6 +352,7 @@ export function ChatModal({ isOpen, onClose, userName = "User" }: ChatModalProps
                                 minimizeAIChat={onClose}
                                 className="mt-4 border-t pt-4"
                                 highlightedCitationId={highlightedCitationId}
+                                onNavigateToMessage={handleNavigateToMessage}
                               />
                             ) : null;
                           })()}

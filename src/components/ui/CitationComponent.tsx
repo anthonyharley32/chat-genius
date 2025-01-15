@@ -11,6 +11,8 @@ interface CitationComponentProps {
   references: CitationReference[];
   minimizeAIChat?: () => void;
   className?: string;
+  highlightedCitationId?: string;
+  onNavigateToMessage: (messageId: string, channelId: string | null, userId: string | null) => void;
 }
 
 function ReferencePreview({ citation }: { citation: Citation }) {
@@ -34,7 +36,8 @@ function CitationCard({
   onMouseEnter,
   onMouseLeave,
   showPreview,
-  highlighted = false
+  highlighted = false,
+  onNavigateToMessage
 }: { 
   citation: Citation;
   minimizeAIChat?: () => void;
@@ -42,11 +45,36 @@ function CitationCard({
   onMouseLeave: () => void;
   showPreview: boolean;
   highlighted?: boolean;
+  onNavigateToMessage: (messageId: string, channelId: string | null, userId: string | null) => void;
 }) {
   const { navigate } = useMessageNavigation();
 
   const handleClick = () => {
-    navigate(citation.messageId, { minimizeAIChat });
+    // First navigate to the channel/DM
+    onNavigateToMessage(
+      citation.messageId,
+      citation.metadata.channelId || null,
+      citation.metadata.isDirectMessage ? citation.metadata.userId : null
+    );
+
+    // Then minimize AI chat
+    if (minimizeAIChat) {
+      minimizeAIChat();
+    }
+
+    // Wait for the messages to load and render
+    setTimeout(() => {
+      const success = navigate(citation.messageId, { minimizeAIChat });
+      if (!success) {
+        // If first attempt fails, try again after another delay
+        setTimeout(() => {
+          const retrySuccess = navigate(citation.messageId, { minimizeAIChat });
+          if (!retrySuccess) {
+            console.warn(`Could not navigate to message ${citation.messageId} - element not found`);
+          }
+        }, 200);
+      }
+    }, 300);
   };
 
   return (
@@ -91,11 +119,13 @@ function CitationCard({
 function ReferenceList({ 
   citations, 
   minimizeAIChat,
-  highlightedCitationId
+  highlightedCitationId,
+  onNavigateToMessage
 }: { 
   citations: Citation[]; 
   minimizeAIChat?: () => void;
   highlightedCitationId?: string;
+  onNavigateToMessage: (messageId: string, channelId: string | null, userId: string | null) => void;
 }) {
   const [hoveredCitation, setHoveredCitation] = useState<string | null>(null);
   const [showAllCitations, setShowAllCitations] = useState(false);
@@ -116,6 +146,7 @@ function ReferenceList({
             onMouseLeave={() => setHoveredCitation(null)}
             showPreview={hoveredCitation === citation.id}
             highlighted={citation.id === highlightedCitationId}
+            onNavigateToMessage={onNavigateToMessage}
           />
         ))}
       </div>
@@ -143,6 +174,7 @@ function ReferenceList({
                     onMouseLeave={() => setHoveredCitation(null)}
                     showPreview={hoveredCitation === citation.id}
                     highlighted={citation.id === highlightedCitationId}
+                    onNavigateToMessage={onNavigateToMessage}
                   />
                 ))}
               </div>
@@ -167,18 +199,16 @@ export function CitationComponent({
   references,
   minimizeAIChat,
   className,
-  highlightedCitationId
-}: CitationComponentProps & {
-  highlightedCitationId?: string;
-}) {
-  const { navigate } = useMessageNavigation();
-
+  highlightedCitationId,
+  onNavigateToMessage
+}: CitationComponentProps) {
   return (
     <div className={cn("space-y-4", className)}>
       <ReferenceList 
         citations={citations} 
         minimizeAIChat={minimizeAIChat} 
         highlightedCitationId={highlightedCitationId}
+        onNavigateToMessage={onNavigateToMessage}
       />
     </div>
   );

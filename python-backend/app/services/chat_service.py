@@ -93,7 +93,12 @@ class ChatService:
                         "metadata": {
                             "timestamp": metadata.get("timestamp", ""),
                             "userId": metadata.get("user_id", ""),
-                            "userName": user_name
+                            "userName": user_name,
+                            "channelId": metadata.get("channel_id") if message_type == "channel" else None,
+                            "channelName": channel_name if message_type == "channel" else None,
+                            "isDirectMessage": message_type == "direct_message",
+                            "receiverId": metadata.get("receiver_id") if message_type == "direct_message" else None,
+                            "receiverName": receiver_name if message_type == "direct_message" else None
                         }
                     })
                     references.append({

@@ -9,6 +9,7 @@ interface MessageListProps {
   onNewMessage?: () => void;
   highlightedMessageId?: string | null;
   onThreadSelect?: (message: Message) => void;
+  user?: any;
 }
 
 export function MessageList({ 
@@ -17,34 +18,43 @@ export function MessageList({
   onChannelChange, 
   onNewMessage, 
   highlightedMessageId,
-  onThreadSelect 
+  onThreadSelect,
+  user
 }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Initial channel change - instant scroll
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView();
+    // Only scroll to bottom on channel change if we're not navigating to a specific message
+    if (!highlightedMessageId) {
+      messagesEndRef.current?.scrollIntoView();
+    }
     onChannelChange?.();
-  }, [onChannelChange]);
+  }, [onChannelChange, highlightedMessageId]);
 
   // New messages - smooth scroll
   useEffect(() => {
-    if (messages.length > 0 && !highlightedMessageId) {
-      // Immediate scroll for better UX
+    // Only auto-scroll for new messages if we're not navigating to a specific message
+    // AND if the new message is from the current user (to avoid scrolling when loading history)
+    const lastMessage = messages[messages.length - 1];
+    const isNewMessage = lastMessage?.user?.id === user?.id;
+    
+    if (messages.length > 0 && !highlightedMessageId && isNewMessage) {
       messagesEndRef.current?.scrollIntoView({ 
         behavior: "smooth",
         block: "end"
       });
       
-      // Additional scroll after images load to ensure we're at the bottom
-      const lastMessage = messages[messages.length - 1];
+      // Additional scroll after images load
       if (lastMessage.image_url || (lastMessage.file_url && lastMessage.file_type?.startsWith('image/'))) {
         const img = new Image();
         img.onload = () => {
-          messagesEndRef.current?.scrollIntoView({ 
-            behavior: "smooth",
-            block: "end"
-          });
+          if (!highlightedMessageId) {
+            messagesEndRef.current?.scrollIntoView({ 
+              behavior: "smooth",
+              block: "end"
+            });
+          }
         };
         img.src = lastMessage.image_url || lastMessage.file_url || '';
       }
