@@ -39,12 +39,12 @@ async def chat(request: ChatRequest):
         logger.info(f"Message: {request.message}")
         logger.info(f"User ID: {request.user_id}")
         
-        response = await chat_service.generate_response(
+        response_data = await chat_service.generate_response(
             message=request.message,
             user_id=request.user_id
         )
         logger.info("Response generated successfully")
-        return {"response": response}
+        return response_data
     except Exception as e:
         logger.error(f"Error in chat endpoint: {type(e).__name__}")
         logger.error(f"Full traceback: {traceback.format_exc()}")

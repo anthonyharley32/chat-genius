@@ -57,33 +57,84 @@ class ChatService:
                 
         return "\n".join(context_parts)
 
-    async def generate_response(self, message: str, user_id: str) -> str:
+    async def generate_response(self, message: str, user_id: str) -> Dict[str, Any]:
         try:
             logger.debug("Searching for similar messages...")
             similar_messages = await self.pinecone_service.query_similar(message, top_k=5)
             
-            # Format context from similar messages
-            context = self.format_context(similar_messages)
+            # Filter and format numbered references
+            filtered_messages = []
+            citations = []
+            references = []
             
-            # Create system message with context
-            system_message = (
-                "You are a helpful AI assistant. Use the context from previous messages "
-                "to provide more informed and relevant responses. If the context is relevant, "
-                "refer to it naturally in your response. If it's not relevant, simply ignore it."
-            )
+            for i, msg in enumerate(similar_messages, 1):
+                if msg["similarity_score"] >= 0.22:  # Same threshold as before
+                    citation_id = f"cite_{i}"
+                    metadata = msg["metadata"]
+                    message_type = metadata["message_type"]
+                    user_name = metadata.get("user_name", "Unknown User")
+                    
+                    # Format reference for LLM
+                    if message_type == "channel":
+                        channel_name = metadata.get("channel_name", "Unknown Channel")
+                        ref_text = f"Reference [{i}] (from #{channel_name}): {msg['content']}"
+                    else:
+                        receiver_name = metadata.get("receiver_name", "Unknown User")
+                        ref_text = f"Reference [{i}] (from DM): {msg['content']}"
+                    
+                    filtered_messages.append(ref_text)
+                    
+                    # Prepare citation data
+                    citations.append({
+                        "id": citation_id,
+                        "messageId": metadata.get("message_id", ""),
+                        "similarityScore": msg["similarity_score"],
+                        "previewText": msg["content"][:100],  # First 100 chars
+                        "metadata": {
+                            "timestamp": metadata.get("timestamp", ""),
+                            "userId": metadata.get("user_id", ""),
+                            "userName": user_name
+                        }
+                    })
+                    references.append({
+                        "citationId": citation_id,
+                        "inlinePosition": i,
+                        "referenceText": str(i)
+                    })
             
-            # Create messages array with context
+            # Create system message with citation instructions
+            system_message = """You are a helpful AI assistant with access to previous messages as numbered references.
+You should actively use these references to support your responses. When you mention ANY information from the references,
+you MUST cite them using the {ref:N} format where N is the reference number.
+
+Guidelines for citations:
+1. Place the citation immediately after the information it supports
+2. Be specific about what information you're citing
+3. Use multiple citations if you're combining information from different references
+4. If a reference contains relevant information, make sure to incorporate and cite it
+
+Example good citations:
+- "The project uses TypeScript for type safety {ref:1} and implements React hooks for state management {ref:2}"
+- "Based on the previous implementation {ref:1}, which had performance issues with large datasets {ref:2}, we should..."
+
+Available references:
+""" + "\n".join(filtered_messages)
+            
+            # Create messages array
             messages = [
                 SystemMessage(content=system_message),
-                SystemMessage(content=context) if context else None,
                 HumanMessage(content=message)
             ]
-            messages = [msg for msg in messages if msg is not None]
             
-            logger.debug("Generating response with context")
+            logger.debug("Generating response with citations")
             response = await self.chat.agenerate([messages])
-            return response.generations[0][0].text
+            
+            return {
+                "response": response.generations[0][0].text,
+                "citations": citations,
+                "references": references
+            }
             
         except Exception as e:
             logger.error(f"Error generating response: {type(e).__name__}")
-            raise 
+            raise
