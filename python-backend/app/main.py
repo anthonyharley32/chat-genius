@@ -1,7 +1,7 @@
 from fastapi import FastAPI # type: ignore
 from fastapi.middleware.cors import CORSMiddleware # type: ignore
 from .routes import chat
-from dotenv import load_dotenv
+from dotenv import load_dotenv # type: ignore
 import os
 import logging
 

@@ -63,6 +63,7 @@ export function useMessageSender() {
 
       // Then, upsert to Pinecone
       try {
+        console.log('Sending message to Pinecone:', content.trim());
         const response = await fetch('/api/chat/upsert-message', {
           method: 'POST',
           headers: {
