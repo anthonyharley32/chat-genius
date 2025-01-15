@@ -21,9 +21,16 @@ export default function SignupPage() {
     const formData = new FormData(e.currentTarget);
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
+    const confirmPassword = formData.get('confirmPassword') as string;
     const fullName = formData.get('name') as string;
     const username = formData.get('username') as string;
     const displayName = formData.get('displayName') as string || fullName;
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      setLoading(false);
+      return;
+    }
 
     try {
       // First check if username is available
@@ -154,6 +161,21 @@ export default function SignupPage() {
                 minLength={6}
                 className="mt-1 block w-full rounded-md border p-2"
                 placeholder="Password (min. 6 characters)"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+                Confirm Password
+              </label>
+              <input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                required
+                minLength={6}
+                className="mt-1 block w-full rounded-md border p-2"
+                placeholder="Confirm your password"
               />
             </div>
           </div>
