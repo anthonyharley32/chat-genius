@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, KeyboardEvent } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { useUser } from '../hooks/useUser';
 import { SearchResultModal } from '@/components/ui/SearchResultModal';
+import { useMessageNavigation } from '@/utils/messageNavigation';
 import { Loader2 } from 'lucide-react';
 
 interface SearchResult {
@@ -37,13 +38,15 @@ interface SearchResultsProps {
   isOpen: boolean;
   onClose: () => void;
   onNavigateToMessage: (messageId: string, channelId: string | null, userId: string | null) => void;
+  minimizeAIChat?: () => void;
 }
 
 export default function SearchResults({
   searchText,
   isOpen,
   onClose,
-  onNavigateToMessage
+  onNavigateToMessage,
+  minimizeAIChat
 }: SearchResultsProps) {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -52,6 +55,7 @@ export default function SearchResults({
   const resultsRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
   const { user } = useUser();
+  const { navigate } = useMessageNavigation();
 
   useEffect(() => {
     if (!searchText || !isOpen) {
@@ -109,6 +113,26 @@ export default function SearchResults({
     return () => clearTimeout(debounceTimeout);
   }, [searchText, isOpen]);
 
+  const handleResultClick = (result: SearchResult) => {
+    // First navigate to the channel/user
+    onNavigateToMessage(
+      result.id,
+      result.is_direct_message ? null : result.channel_id,
+      result.is_direct_message ? (result.user_id === user?.id ? result.receiver_id || null : result.user_id) : null
+    );
+    
+    // Close the search modal
+    onClose();
+
+    // Wait a short delay for the messages to load and render
+    setTimeout(() => {
+      const success = navigate(result.id, { minimizeAIChat });
+      if (!success) {
+        console.warn(`Could not navigate to message ${result.id} - element not found`);
+      }
+    }, 500);
+  };
+
   const handleKeyDown = (e: KeyboardEvent) => {
     switch (e.key) {
       case 'ArrowDown':
@@ -122,13 +146,7 @@ export default function SearchResults({
       case 'Enter':
         e.preventDefault();
         if (results[selectedIndex]) {
-          const result = results[selectedIndex];
-          onNavigateToMessage(
-            result.id,
-            result.is_direct_message ? null : result.channel_id,
-            result.is_direct_message ? (result.user_id === user?.id ? result.receiver_id || null : result.user_id) : null
-          );
-          onClose();
+          handleResultClick(results[selectedIndex]);
         }
         break;
       case 'Escape':
@@ -200,14 +218,7 @@ export default function SearchResults({
                 className={`py-3 hover:bg-gray-50 transition-colors cursor-pointer -mx-4 px-4 ${
                   index === selectedIndex ? 'bg-gray-50' : ''
                 }`}
-                onClick={() => {
-                  onNavigateToMessage(
-                    result.id,
-                    result.is_direct_message ? null : result.channel_id,
-                    result.is_direct_message ? (result.user_id === user?.id ? result.receiver_id || null : result.user_id) : null
-                  );
-                  onClose();
-                }}
+                onClick={() => handleResultClick(result)}
               >
                 <div className="font-bold text-sm text-gray-700 mb-1">
                   {result.is_direct_message ? (

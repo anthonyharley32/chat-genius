@@ -17,6 +17,10 @@
 [ ] thread indicator not updating in main chat log.
 [X] Add channel metadata to pinecone and system prompt.
 [X] Reload loses spot
+[ ] Citation UI
+[ ] Citation message nav + highlight
+
+
 
 ###OPTIMIZE
 [ ] RAG prompting
@@ -27,7 +31,8 @@
 [ ] Confirm password
 [ ] Code blocks content select.
 [ ] LLM streaming
-[ ] Perplexity style message reference system. #
+[ ] Raise minimized AI chat above message input.
+[X] Perplexity style message reference system.
 [X] AI Chat Title Header.
 [X] 4o mini
 [X] Notification for new messages.

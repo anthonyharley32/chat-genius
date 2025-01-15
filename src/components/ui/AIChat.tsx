@@ -1,10 +1,21 @@
 import { useState } from 'react';
 import { useAIChat } from '@/hooks/useAIChat';
+import { useMessageNavigation } from '@/utils/messageNavigation';
+import { AIMessage } from '@/types/ai';
+import { CitationComponent } from './CitationComponent';
+import { Citation } from '@/types/citations';
+
+interface AIResponse {
+  content: string;
+  citations?: Citation[];
+}
 
 export function AIChat() {
   const [message, setMessage] = useState('');
-  const [response, setResponse] = useState<string | null>(null);
+  const [response, setResponse] = useState<AIResponse | null>(null);
+  const [isMinimized, setIsMinimized] = useState(false);
   const { sendMessage, isLoading, error } = useAIChat();
+  const { navigate } = useMessageNavigation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -12,12 +23,34 @@ export function AIChat() {
 
     try {
       const aiResponse = await sendMessage(message);
-      setResponse(aiResponse);
+      setResponse({
+        content: aiResponse.content,
+        citations: aiResponse.citations
+      });
       setMessage('');
     } catch (err) {
       console.error('Error sending message:', err);
     }
   };
+
+  const handleMinimize = () => {
+    setIsMinimized(true);
+  };
+
+  const handleCitationClick = (messageId: string) => {
+    navigate(messageId, { minimizeAIChat: handleMinimize });
+  };
+
+  if (isMinimized) {
+    return (
+      <button
+        onClick={() => setIsMinimized(false)}
+        className="fixed bottom-4 right-4 bg-blue-500 text-white p-3 rounded-full shadow-lg hover:bg-blue-600 transition-colors"
+      >
+        AI Chat
+      </button>
+    );
+  }
 
   return (
     <div className="p-4">
@@ -49,7 +82,14 @@ export function AIChat() {
       {response && (
         <div className="mt-4 p-4 bg-gray-100 rounded">
           <h3 className="font-bold mb-2">Response:</h3>
-          <p className="whitespace-pre-wrap">{response}</p>
+          <p className="whitespace-pre-wrap">{response.content}</p>
+          {response.citations && response.citations.length > 0 && (
+            <CitationComponent 
+              citations={response.citations} 
+              references={[]} 
+              minimizeAIChat={handleMinimize}
+            />
+          )}
         </div>
       )}
     </div>

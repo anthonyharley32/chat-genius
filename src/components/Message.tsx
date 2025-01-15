@@ -188,6 +188,7 @@ export function Message({ message, isConsecutive = false, highlightedMessageId, 
   return (
     <div 
       ref={messageRef}
+      id={`message-${message.id}`}
       className={`py-1 group hover:bg-gray-100 transition-colors rounded-lg ${isConsecutive ? 'pl-[60px]' : 'px-2'}`}
     >
       <div className="relative">

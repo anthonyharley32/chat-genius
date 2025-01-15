@@ -4,11 +4,12 @@ import { useState } from 'react';
 import { Citation, CitationReference } from '@/types/citations';
 import { cn } from '@/lib/utils';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { useMessageNavigation } from '@/utils/messageNavigation';
 
 interface CitationComponentProps {
   citations: Citation[];
   references: CitationReference[];
-  onMessageClick: (messageId: string) => void;
+  minimizeAIChat?: () => void;
   className?: string;
 }
 
@@ -29,17 +30,23 @@ function ReferencePreview({ citation }: { citation: Citation }) {
 
 function CitationCard({ 
   citation, 
-  onMessageClick,
+  minimizeAIChat,
   onMouseEnter,
   onMouseLeave,
   showPreview
 }: { 
   citation: Citation;
-  onMessageClick: (messageId: string) => void;
+  minimizeAIChat?: () => void;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
   showPreview: boolean;
 }) {
+  const { navigate } = useMessageNavigation();
+
+  const handleClick = () => {
+    navigate(citation.messageId, { minimizeAIChat });
+  };
+
   return (
     <div
       className="relative"
@@ -47,7 +54,7 @@ function CitationCard({
       onMouseLeave={onMouseLeave}
     >
       <button
-        onClick={() => onMessageClick(citation.messageId)}
+        onClick={handleClick}
         className="w-full text-left p-3 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 
                  dark:hover:bg-gray-700 transition-colors duration-200"
         aria-label={`View referenced message from ${citation.metadata.userName}`}
@@ -71,10 +78,10 @@ function CitationCard({
 
 function ReferenceList({ 
   citations, 
-  onMessageClick 
+  minimizeAIChat 
 }: { 
   citations: Citation[]; 
-  onMessageClick: (messageId: string) => void;
+  minimizeAIChat?: () => void;
 }) {
   const [hoveredCitation, setHoveredCitation] = useState<string | null>(null);
   const [showAllCitations, setShowAllCitations] = useState(false);
@@ -90,7 +97,7 @@ function ReferenceList({
           <CitationCard
             key={citation.id}
             citation={citation}
-            onMessageClick={onMessageClick}
+            minimizeAIChat={minimizeAIChat}
             onMouseEnter={() => setHoveredCitation(citation.id)}
             onMouseLeave={() => setHoveredCitation(null)}
             showPreview={hoveredCitation === citation.id}
@@ -116,7 +123,7 @@ function ReferenceList({
                   <CitationCard
                     key={citation.id}
                     citation={citation}
-                    onMessageClick={onMessageClick}
+                    minimizeAIChat={minimizeAIChat}
                     onMouseEnter={() => setHoveredCitation(citation.id)}
                     onMouseLeave={() => setHoveredCitation(null)}
                     showPreview={hoveredCitation === citation.id}
@@ -142,29 +149,14 @@ function ReferenceList({
 export function CitationComponent({
   citations,
   references,
-  onMessageClick,
+  minimizeAIChat,
   className
 }: CitationComponentProps) {
+  const { navigate } = useMessageNavigation();
+
   return (
     <div className={cn("space-y-4", className)}>
-      <div className="prose dark:prose-invert max-w-none">
-        {references.map((ref) => (
-          <button
-            key={ref.citationId}
-            onClick={() => {
-              const citation = citations.find(c => c.id === ref.citationId);
-              if (citation) onMessageClick(citation.messageId);
-            }}
-            className="inline-flex items-center px-2 py-1 mx-1 bg-blue-100 dark:bg-blue-900/30 
-                     text-blue-700 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-800/30 
-                     transition-colors duration-200 text-sm"
-            aria-label={`View citation ${ref.referenceText}`}
-          >
-            [{ref.referenceText}]
-          </button>
-        ))}
-      </div>
-      <ReferenceList citations={citations} onMessageClick={onMessageClick} />
+      <ReferenceList citations={citations} minimizeAIChat={minimizeAIChat} />
     </div>
   );
 } 
