@@ -167,25 +167,28 @@ export function ChatModal({ isOpen, onClose, userName = "User" }: ChatModalProps
   if (!isOpen) return null;
 
   const modalContent = isMinimized ? (
-    <div className="fixed bottom-4 right-4 z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 flex items-center space-x-4">
-        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+    <div className="fixed bottom-[80px] right-4 z-50">
+      <div className="bg-blue-600 rounded-full shadow-lg p-4 flex items-center space-x-4">
+        <span className="text-sm font-medium text-white">
           AI Chat
         </span>
         <div className="flex items-center space-x-2">
           <button
             onClick={() => setIsMinimized(false)}
-            className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="p-1.5 hover:bg-blue-500 rounded-full transition-colors"
             aria-label="Maximize chat"
           >
-            <Maximize2 className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+            <Maximize2 className="w-4 h-4 text-white" />
           </button>
           <button
-            onClick={onClose}
-            className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            onClick={() => {
+              setIsMinimized(false);
+              onClose();
+            }}
+            className="p-1.5 hover:bg-blue-500 rounded-full transition-colors"
             aria-label="Close chat"
           >
-            <X className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+            <X className="w-4 h-4 text-white" />
           </button>
         </div>
       </div>

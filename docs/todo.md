@@ -4,14 +4,14 @@
 [ ] TL;DR Function
 [ ] Avatar Upload with image generation
 [ ] User selevtive Vector Storage
+[X] RAG prompting
 [X] Chat Modal
 [X] RAG Chatbot
 
 ###DEBUG
-[ ] Make sidebar scrollable.
 [ ] Video show thumbnail and plays after refresh.
 [ ] 8s delay for message reactions and thread count in main chat log. (pushes log down)
-[ ] If you search a message twice, it doesn't highlight.
+[ ] If you search a message twice lag.(Check page before navigating?)
 [ ] fix multiple users on same computer being logged in.
 [ ] after image send, rerenders
 [ ] thread indicator not updating in main chat log.
@@ -19,19 +19,21 @@
 [X] Reload loses spot
 [ ] Citation UI
 [ ] Citation message nav + highlight
+[X] Sidebar scrollable
 
 
 
-###OPTIMIZE
-[ ] RAG prompting
+###UI
+[ ] Minimized AI chat = blue
+[ ] Inline citations highlight citation card.
+[ ] Raise minimized AI chat above message input.
 [ ] isolated videos w/ sound
 [ ] show display name not full name.
-[ ] show sending message when others are sending.
 [ ] shows search result with space on each side.
-[ ] Confirm password
 [ ] Code blocks content select.
-[ ] LLM streaming
-[ ] Raise minimized AI chat above message input.
+[ ] Mobile compatible
+[ ] Waiting for AI response indicator.
+[ ] Sidebar scrollbar visibility.
 [X] Perplexity style message reference system.
 [X] AI Chat Title Header.
 [X] 4o mini
@@ -39,16 +41,22 @@
 [X] Seperate page mapping (DMs and channels)
 [X] Markdown formatting
 [X] notifications don't show up for yourself.
+[X] Confirm password
 
 
 
 
 
-###NICE[ ] TO[ ] HAVE
+
+###NICE-TO-HAVE
 [ ] Workspaces
 [ ] Poll creation
 [ ] navbar pp hover options
 [ ] Allow login with email or username
+[ ] LLM streaming
+[ ] show sending message when others are sending.
+
+
 
 
 ###UTILITIES
