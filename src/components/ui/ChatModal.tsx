@@ -94,10 +94,10 @@ export function ChatModal({ isOpen, onClose, userName = "User" }: ChatModalProps
         className="fixed inset-0 flex items-center justify-center pointer-events-none"
       >
         <div 
-          className="bg-white rounded-lg shadow-2xl pointer-events-auto max-h-[90vh] overflow-y-auto w-[95vw]"
+          className="bg-white rounded-lg shadow-2xl pointer-events-auto max-h-[90vh] overflow-y-auto w-[75vw]"
           onClick={e => e.stopPropagation()}
         >
-          <div className="flex flex-col h-[85vh]">
+          <div className="flex flex-col h-[80vh]">
             <div className="p-4 border-b">
               <h2 className="text-xl font-semibold text-gray-900">{userName.split(' ')[0]}'s AI Assistant</h2>
               <p className="text-sm text-gray-500">Ask me anything about my workspace</p>
@@ -116,7 +116,7 @@ export function ChatModal({ isOpen, onClose, userName = "User" }: ChatModalProps
                   }`}
                 >
                   <div
-                    className={`max-w-[80%] rounded-lg p-3 ${
+                    className={`max-w-[85%] rounded-lg p-3 ${
                       msg.role === 'user'
                         ? 'bg-blue-500 text-white'
                         : 'bg-gray-100 text-gray-900'
