@@ -24,13 +24,16 @@
 [ ] show display name not full name.
 [ ] show sending message when others are sending.
 [ ] shows search result with space on each side.
-[ ] notifications don't show up for yourself.
 [ ] Confirm password
-[ ] Markdown formatting
+[ ] Code blocks content select.
+[ ] LLM streaming
 [X] AI Chat Title Header.
 [X] 4o mini
 [X] Notification for new messages.
 [X] Seperate page mapping (DMs and channels)
+[X] Markdown formatting
+[X] notifications don't show up for yourself.
+
 
 
 

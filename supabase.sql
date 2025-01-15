@@ -347,19 +347,22 @@ BEGIN
   
   -- For direct messages
   ELSIF NEW.is_direct_message AND NEW.receiver_id IS NOT NULL THEN
-    -- Create/update unread count for the receiver
-    INSERT INTO public.unread_messages (user_id, dm_user_id, unread_count)
-    VALUES (NEW.receiver_id, NEW.user_id, 1)
-    ON CONFLICT (user_id, channel_id, dm_user_id)
-    DO UPDATE SET 
-      unread_count = public.unread_messages.unread_count + 1,
-      updated_at = now();
+    -- Skip if it's a self-message
+    IF NEW.user_id != NEW.receiver_id THEN
+      -- Create/update unread count for the receiver
+      INSERT INTO public.unread_messages (user_id, dm_user_id, unread_count)
+      VALUES (NEW.receiver_id, NEW.user_id, 1)
+      ON CONFLICT (user_id, channel_id, dm_user_id)
+      DO UPDATE SET 
+        unread_count = public.unread_messages.unread_count + 1,
+        updated_at = now();
 
-    -- Also create a record for the sender (with count 0) if it doesn't exist
-    INSERT INTO public.unread_messages (user_id, dm_user_id, unread_count)
-    VALUES (NEW.user_id, NEW.receiver_id, 0)
-    ON CONFLICT (user_id, channel_id, dm_user_id)
-    DO NOTHING;
+      -- Also create a record for the sender (with count 0) if it doesn't exist
+      INSERT INTO public.unread_messages (user_id, dm_user_id, unread_count)
+      VALUES (NEW.user_id, NEW.receiver_id, 0)
+      ON CONFLICT (user_id, channel_id, dm_user_id)
+      DO NOTHING;
+    END IF;
   END IF;
   
   RETURN NEW;
