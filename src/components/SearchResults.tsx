@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, KeyboardEvent } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { useUser } from '../hooks/useUser';
-import { Modal } from '@/components/ui/Modal';
+import { SearchResultModal } from '@/components/ui/SearchResultModal';
 import { Loader2 } from 'lucide-react';
 
 interface SearchResult {
@@ -170,7 +170,7 @@ export default function SearchResults({
   if (!isOpen || !searchText) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose}>
+    <SearchResultModal isOpen={isOpen} onClose={onClose}>
       <div 
         className="w-[32rem] p-4"
         onKeyDown={handleKeyDown}
@@ -230,6 +230,6 @@ export default function SearchResults({
           </div>
         )}
       </div>
-    </Modal>
+    </SearchResultModal>
   );
 }

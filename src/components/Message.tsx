@@ -8,6 +8,7 @@ import { useAvatarUrl } from '@/hooks/useAvatarUrl';
 import { FileIcon, Download, X, MessageSquare } from 'lucide-react';
 import { useMessageHighlight } from '@/hooks/useMessageHighlight';
 import { ThreadIndicator } from './ThreadIndicator';
+import ReactMarkdown from 'react-markdown';
 
 interface Reaction {
   emoji: string;
@@ -223,7 +224,44 @@ export function Message({ message, isConsecutive = false, highlightedMessageId, 
                 </div>
               )}
               {message.content && (
-                <p className="mt-0 leading-tight">{message.content}</p>
+                <div className="mt-0 leading-tight">
+                  <ReactMarkdown
+                    className="prose prose-sm max-w-none dark:prose-invert"
+                    components={{
+                      p: ({ children }) => <p className="whitespace-pre-wrap mb-4 last:mb-0">{children}</p>,
+                      code: ({ children }) => (
+                        <code className="bg-gray-200 dark:bg-gray-800 rounded px-1 py-0.5">{children}</code>
+                      ),
+                      pre: ({ children }) => (
+                        <pre className="bg-gray-200 dark:bg-gray-800 rounded-md p-3 overflow-x-auto mb-4">{children}</pre>
+                      ),
+                      ul: ({ children }) => <ul className="list-disc list-inside mb-4">{children}</ul>,
+                      ol: ({ children }) => <ol className="list-decimal list-inside mb-4">{children}</ol>,
+                      li: ({ children }) => <li className="mb-1">{children}</li>,
+                      blockquote: ({ children }) => (
+                        <blockquote className="border-l-4 border-gray-300 pl-4 italic mb-4">{children}</blockquote>
+                      ),
+                      a: ({ href, children }) => (
+                        <a href={href} className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">
+                          {children}
+                        </a>
+                      ),
+                      table: ({ children }) => (
+                        <div className="overflow-x-auto mb-4">
+                          <table className="min-w-full border-collapse border border-gray-300">{children}</table>
+                        </div>
+                      ),
+                      th: ({ children }) => (
+                        <th className="border border-gray-300 px-4 py-2 bg-gray-200">{children}</th>
+                      ),
+                      td: ({ children }) => (
+                        <td className="border border-gray-300 px-4 py-2">{children}</td>
+                      ),
+                    }}
+                  >
+                    {message.content}
+                  </ReactMarkdown>
+                </div>
               )}
             </div>
             {message.image_url && (

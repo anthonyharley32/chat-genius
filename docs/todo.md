@@ -1,31 +1,40 @@
 ###TODO
-[X] Chat Modal
-[ ] RAG Chatbot
 [ ] Voice Synthesis
 [ ] Video Synthesis
 [ ] TL;DR Function
 [ ] Avatar Upload with image generation
+[ ] User selevtive Vector Storage
+[X] Chat Modal
+[X] RAG Chatbot
 
 
 
 ###DEBUG
-[ ] video show thumbnail and plays after refresh.
+[ ] Video show thumbnail and plays after refresh.
 [ ] 8s delay for message reactions and thread count in main chat log. (pushes log down)
 [ ] If you search a message twice, it doesn't highlight.
 [ ] fix multiple users on same computer being logged in.
 [ ] after image send, rerenders
 [ ] thread indicator not updating in main chat log.
+[X] Reload loses spot
 
 ###OPTIMIZE
+[ ] RAG prompting
 [ ] isolated videos w/ sound
 [ ] show display name not full name.
 [ ] show sending message when others are sending.
-[ ] Seperate page mapping (DMs and channels)
-[X] Notification for new messages.
 [ ] shows search result with space on each side.
 [ ] notifications don't show up for yourself.
 [ ] Confirm password
-[?] 4o mini
+[ ] Markdown formatting
+[X] AI Chat Title Header.
+[X] 4o mini
+[X] Notification for new messages.
+[X] Seperate page mapping (DMs and channels)
+
+
+
+
 
 ###NICE[ ] TO[ ] HAVE
 [ ] Workspaces

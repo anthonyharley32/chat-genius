@@ -18,6 +18,8 @@ export type Message = {
     full_name: string;
     avatar_url: string;
   };
+  is_ai?: boolean;
+  role?: string;
 };
 
 export type MessageData = {

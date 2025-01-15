@@ -21,8 +21,81 @@ module.exports = {
           'sans-serif'            // Final fallback
         ],
       },
+      typography: {
+        DEFAULT: {
+          css: {
+            maxWidth: 'none',
+            color: 'inherit',
+            a: {
+              color: '#3b82f6',
+              '&:hover': {
+                color: '#2563eb',
+              },
+            },
+            pre: {
+              color: '#374151',
+              backgroundColor: '#f3f4f6',
+              borderRadius: '0.375rem',
+              padding: '1rem',
+              overflowX: 'auto',
+              display: 'block',
+              width: '100%',
+              marginTop: '1em',
+              marginBottom: '1em',
+              whiteSpace: 'pre',
+              '&::-webkit-scrollbar': {
+                height: '8px',
+              },
+              '&::-webkit-scrollbar-track': {
+                backgroundColor: '#f1f1f1',
+                borderRadius: '4px',
+              },
+              '&::-webkit-scrollbar-thumb': {
+                backgroundColor: '#888',
+                borderRadius: '4px',
+                '&:hover': {
+                  backgroundColor: '#666',
+                },
+              },
+            },
+            code: {
+              color: '#374151',
+              backgroundColor: '#f3f4f6',
+              borderRadius: '0.25rem',
+              paddingTop: '0.125rem',
+              paddingBottom: '0.125rem',
+              paddingLeft: '0.25rem',
+              paddingRight: '0.25rem',
+              '&::before': {
+                content: '""',
+              },
+              '&::after': {
+                content: '""',
+              },
+            },
+            'pre code': {
+              color: '#374151',
+              backgroundColor: 'transparent',
+              borderRadius: '0',
+              padding: '0',
+              whiteSpace: 'pre',
+              border: 'none',
+              display: 'inline-block',
+              minWidth: '100%',
+              '&::before': {
+                content: '""',
+              },
+              '&::after': {
+                content: '""',
+              },
+            },
+          },
+        },
+      },
     },
   },
-  plugins: [],
+  plugins: [
+    require('@tailwindcss/typography'),
+  ],
 }
 

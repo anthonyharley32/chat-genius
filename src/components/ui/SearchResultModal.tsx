@@ -3,13 +3,13 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 
-interface ModalProps {
+interface SearchResultModalProps {
   isOpen: boolean;
   onClose: () => void;
   children: React.ReactNode;
 }
 
-export function Modal({ isOpen, onClose, children }: ModalProps) {
+export function SearchResultModal({ isOpen, onClose, children }: SearchResultModalProps) {
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -47,7 +47,6 @@ export function Modal({ isOpen, onClose, children }: ModalProps) {
     </>
   );
 
-  // Create portal to render modal at the root level
   return createPortal(
     modalContent,
     document.body
