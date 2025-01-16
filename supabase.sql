@@ -24,14 +24,17 @@ DROP TABLE IF EXISTS channels CASCADE;
 DROP TABLE IF EXISTS workspace_members CASCADE;
 DROP TABLE IF EXISTS workspaces CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
+DROP TABLE IF EXISTS unread_messages CASCADE;
 
 -- Drop storage bucket if exists
 DROP POLICY IF EXISTS "Avatar upload policy" ON storage.objects;
 DROP POLICY IF EXISTS "Avatar view policy" ON storage.objects;
-DELETE FROM storage.objects WHERE bucket_id = 'avatars';
-DELETE FROM storage.buckets WHERE id = 'avatars';
 DROP POLICY IF EXISTS "Message attachments upload policy" ON storage.objects;
 DROP POLICY IF EXISTS "Message attachments view policy" ON storage.objects;
+DELETE FROM storage.objects WHERE bucket_id = 'avatars';
+DELETE FROM storage.buckets WHERE id = 'avatars';
+DELETE FROM storage.objects WHERE bucket_id = 'message-attachments';
+DELETE FROM storage.buckets WHERE id = 'message-attachments';
 
 -- Users table (complete)
 CREATE TABLE public.users (
@@ -49,8 +52,8 @@ CREATE TABLE public.users (
   last_seen timestamptz default now(),
   created_at timestamptz default now(),
   updated_at timestamptz default now(),
-  constraint username_length check (char_length(username) >= 3)
-  constraint status_check check (status IN ('online', 'away', 'busy', 'offline'));
+  constraint username_length check (char_length(username) >= 3),
+  constraint status_check check (status IN ('online', 'away', 'busy', 'offline'))
 );
 
 -- Workspaces table
@@ -399,9 +402,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Drop existing AI-related tables if they exist
+-- Drop existing AI-related tables and storage buckets if they exist
 DROP TABLE IF EXISTS public.ai_chat_history CASCADE;
 DROP TABLE IF EXISTS public.ai_avatar_settings CASCADE;
+DROP TABLE IF EXISTS public.voice_preferences CASCADE;
+DROP TABLE IF EXISTS public.voice_training_samples CASCADE;
+DELETE FROM storage.objects WHERE bucket_id = 'voice-samples';
+DELETE FROM storage.buckets WHERE id = 'voice-samples';
 
 -- AI Avatar settings table (for user's avatar instructions)
 CREATE TABLE public.ai_avatar_settings (
@@ -424,12 +431,22 @@ CREATE TABLE public.ai_chat_history (
     updated_at timestamptz default now()
 );
 
--- Voice Preferences table
+-- Voice Preferences table (simplified)
 CREATE TABLE public.voice_preferences (
     user_id uuid references public.users(id) on delete cascade primary key,
-    voice_id text,  -- ElevenLabs voice ID
-    auto_play boolean default false,  -- Whether to auto-play voice messages
-    custom_voice_id text,  -- ID of user's custom trained voice if they have one
+    voice_id text,  -- ElevenLabs voice ID for AI responses (either preset or custom)
+    auto_play boolean default false,
+    is_custom_voice boolean default false,  -- Flag to indicate if using a custom trained voice
+    created_at timestamptz default now(),
+    updated_at timestamptz default now()
+);
+
+-- Voice Training Samples table (for custom voice creation)
+CREATE TABLE public.voice_training_samples (
+    id uuid default gen_random_uuid() primary key,
+    user_id uuid references public.users(id) on delete cascade,
+    file_path text not null,  -- Path in voice-samples bucket
+    status text default 'pending' check (status in ('pending', 'processed', 'failed')),
     created_at timestamptz default now(),
     updated_at timestamptz default now()
 );
@@ -440,16 +457,5 @@ CREATE INDEX idx_ai_chat_history_user_id ON public.ai_chat_history(user_id);
  -- Create storage bucket and policies for voice samples
 insert into storage.buckets (id, name, public) 
 values ('voice-samples', 'voice-samples', true);
-
-create policy "Voice samples upload policy"
-  on storage.objects for insert
-  with check (
-    bucket_id = 'voice-samples' 
-    and auth.role() = 'authenticated'
-  );
-
-create policy "Voice samples view policy"
-  on storage.objects for select
-  using ( bucket_id = 'voice-samples' );
 
  
