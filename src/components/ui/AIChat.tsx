@@ -7,6 +7,7 @@ import { Citation } from '@/types/citations';
 import { useRouter } from 'next/navigation';
 
 interface AIResponse {
+  id: string;
   content: string;
   citations?: Citation[];
 }
@@ -15,6 +16,11 @@ export function AIChat() {
   const [message, setMessage] = useState('');
   const [response, setResponse] = useState<AIResponse | null>(null);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [highlightedCitation, setHighlightedCitation] = useState<{
+    messageId: string;
+    citationId: string;
+  } | null>(null);
+  const [showAllCitations, setShowAllCitations] = useState(false);
   const { sendMessage, isLoading, error } = useAIChat();
   const { navigate } = useMessageNavigation();
   const router = useRouter();
@@ -35,7 +41,9 @@ export function AIChat() {
 
     try {
       const aiResponse = await sendMessage(message);
+      const messageId = aiResponse.id || `ai-response-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       setResponse({
+        id: messageId,
         content: aiResponse.content,
         citations: aiResponse.citations
       });
@@ -93,10 +101,15 @@ export function AIChat() {
           <p className="whitespace-pre-wrap">{response.content}</p>
           {response.citations && response.citations.length > 0 && (
             <CitationComponent 
+              messageId={response.id}
               citations={response.citations} 
               references={[]} 
               minimizeAIChat={handleMinimize}
               onNavigateToMessage={handleNavigateToMessage}
+              highlightedCitation={highlightedCitation}
+              setHighlightedCitation={setHighlightedCitation}
+              showAllCitations={showAllCitations}
+              setShowAllCitations={setShowAllCitations}
             />
           )}
         </div>

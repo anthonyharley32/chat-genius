@@ -49,7 +49,11 @@ function formatMessageWithCitations(content: string, references: CitationReferen
         return (
           <button
             key={index}
-            onClick={() => onCitationClick(citationId)}
+            onClick={() => {
+              if (citationId) {
+                onCitationClick(citationId);
+              }
+            }}
             className="inline-flex items-center px-1.5 py-0.5 mx-0.5 bg-blue-100 dark:bg-blue-900/30 
                      text-blue-700 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-800/30 
                      transition-colors duration-200 text-sm"
@@ -65,36 +69,73 @@ function formatMessageWithCitations(content: string, references: CitationReferen
 }
 
 function getUsedCitations(content: string, citations: Citation[], references: CitationReference[]) {
+  console.log('Debug - Content:', content);
+  console.log('Debug - Original Citations:', citations);
+  console.log('Debug - Original References:', references);
+
   // Find all citation markers in the content in order of appearance
   const markers = content.match(/\{ref:\d+\}/g) || [];
-  const usedRefNumbers = markers.map(marker => marker.match(/\d+/)?.[0]).filter(Boolean);
+  const usedRefNumbers = markers
+    .map(marker => {
+      const match = marker.match(/\d+/);
+      return match ? match[0] : null;
+    })
+    .filter((ref): ref is string => ref !== null);
   
-  // Create sequential display numbers
+  console.log('Debug - Citation markers in order:', markers);
+  console.log('Debug - Used reference numbers in order:', usedRefNumbers);
+  
+  // Create sequential display numbers while preserving original order
   const uniqueRefs = Array.from(new Set(usedRefNumbers));
   const displayNumberMap = new Map(
     uniqueRefs.map((ref, index) => [ref, (index + 1).toString()])
   );
   
-  // Get the citation IDs that are actually used
-  const usedCitationIds = new Set();
+  console.log('Debug - Display number mapping:', Object.fromEntries(displayNumberMap));
+  
+  // Track citation order based on first appearance in text
+  const citationOrder = usedRefNumbers
+    .map(refNum => {
+      const ref = references.find(r => r.referenceText === refNum);
+      const displayNumber = displayNumberMap.get(refNum);
+      return ref && displayNumber ? { refNum, citationId: ref.citationId, displayNumber } : null;
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null);
+
+  console.log('Debug - Citation order:', citationOrder);
+
+  // Create new references maintaining the order
+  const usedCitationIds = new Set<string>();
   const newReferences: CitationReference[] = [];
   
-  usedRefNumbers.forEach(refNum => {
-    const originalRef = references.find(ref => ref.referenceText === refNum);
-    if (originalRef) {
-      usedCitationIds.add(originalRef.citationId);
-      if (!newReferences.some(ref => ref.citationId === originalRef.citationId)) {
-        // Create new reference with sequential display number but keep original citationId
+  citationOrder.forEach(({ refNum, citationId, displayNumber }) => {
+    if (!usedCitationIds.has(citationId)) {
+      usedCitationIds.add(citationId);
+      const originalRef = references.find(ref => ref.citationId === citationId);
+      if (originalRef) {
         newReferences.push({
           ...originalRef,
-          referenceText: displayNumberMap.get(refNum)!
+          referenceText: displayNumber
         });
       }
     }
   });
+
+  console.log('Debug - New references:', newReferences);
+  
+  // Order citations based on their first appearance in the text
+  const orderedCitations = citations
+    .filter(citation => usedCitationIds.has(citation.id))
+    .sort((a, b) => {
+      const aIndex = citationOrder.findIndex(c => c.citationId === a.id);
+      const bIndex = citationOrder.findIndex(c => c.citationId === b.id);
+      return aIndex - bIndex;
+    });
+  
+  console.log('Debug - Final ordered citations:', orderedCitations);
   
   return {
-    citations: citations.filter(citation => usedCitationIds.has(citation.id)),
+    citations: orderedCitations,
     references: newReferences
   };
 }
@@ -103,7 +144,10 @@ export function ChatModal({ isOpen, onClose, userName = "User" }: ChatModalProps
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<AIMessage[]>([]);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
-  const [highlightedCitationId, setHighlightedCitationId] = useState<string | undefined>(undefined);
+  const [highlightedCitation, setHighlightedCitation] = useState<{
+    messageId: string;
+    citationId: string;
+  } | null>(null);
   const [isMinimized, setIsMinimized] = useState(false);
   const messageRef = useMessageHighlight(highlightedMessageId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -146,21 +190,11 @@ export function ChatModal({ isOpen, onClose, userName = "User" }: ChatModalProps
     };
   }, [isOpen, onClose]);
 
-  const handleCitationClick = (citationId: string) => {
-    console.log('Citation click - citationId:', citationId);
-    const allCitations = messages.flatMap(msg => msg.citations || []);
-    console.log('All available citations:', JSON.stringify(allCitations, null, 2));
-    
-    // Find the citation by its ID
-    const citation = allCitations.find(c => c.id === citationId);
-    console.log('Found citation:', citation);
-    
-    if (citation) {
-      setHighlightedCitationId(citation.id);
-      // Don't navigate to message when clicking inline citations
+  const handleCitationClick = (citationId: string, messageId: string) => {
+    if (highlightedCitation?.messageId === messageId && highlightedCitation?.citationId === citationId) {
+      setHighlightedCitation(null);
     } else {
-      console.log('No citation found - clearing highlight');
-      setHighlightedCitationId(undefined);
+      setHighlightedCitation({ messageId, citationId });
     }
   };
 
@@ -299,9 +333,8 @@ export function ChatModal({ isOpen, onClose, userName = "User" }: ChatModalProps
                                 msg.content,
                                 msg.references,
                                 (citationId) => {
-                                  const citation = msg.citations?.find(c => c.id === citationId);
-                                  if (citation) {
-                                    handleCitationClick(citation.id);
+                                  if (msg.id) {
+                                    handleCitationClick(citationId, msg.id);
                                   }
                                 }
                               )
@@ -343,16 +376,18 @@ export function ChatModal({ isOpen, onClose, userName = "User" }: ChatModalProps
                               </ReactMarkdown>
                             )}
                           </div>
-                          {msg.citations && msg.references && (() => {
+                          {msg.citations && msg.references && msg.id && (() => {
                             const { citations, references } = getUsedCitations(msg.content, msg.citations, msg.references);
                             return citations.length > 0 ? (
                               <CitationComponent
+                                messageId={msg.id}
                                 citations={citations}
                                 references={references}
                                 minimizeAIChat={() => setIsMinimized(true)}
                                 className="mt-4 border-t pt-4"
-                                highlightedCitationId={highlightedCitationId}
+                                highlightedCitation={highlightedCitation}
                                 onNavigateToMessage={handleNavigateToMessage}
+                                setHighlightedCitation={setHighlightedCitation}
                               />
                             ) : null;
                           })()}
@@ -369,6 +404,14 @@ export function ChatModal({ isOpen, onClose, userName = "User" }: ChatModalProps
               )}
               <div ref={messagesEndRef} />
             </div>
+
+            {isLoading && (
+              <div className="px-4 py-2">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-500 via-gray-900 to-gray-500 animate-[shimmer_2s_infinite] bg-[length:200%_auto]">
+                  Searching...
+                </span>
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} className="p-4 border-t">
               <div className="flex items-center space-x-2">

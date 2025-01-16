@@ -23,14 +23,18 @@ export function MessageList({
 }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Initial channel change - instant scroll
+  // Initial message load - instant scroll
   useEffect(() => {
-    // Only scroll to bottom on channel change if we're not navigating to a specific message
-    if (!highlightedMessageId) {
+    // Scroll to bottom when messages first load or change, unless we're highlighting a specific message
+    if (messages.length > 0 && !highlightedMessageId) {
       messagesEndRef.current?.scrollIntoView();
     }
+  }, [messages, highlightedMessageId]);
+
+  // Initial channel change - instant scroll
+  useEffect(() => {
     onChannelChange?.();
-  }, [onChannelChange, highlightedMessageId]);
+  }, [onChannelChange]);
 
   // New messages - smooth scroll
   useEffect(() => {

@@ -1,18 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Citation, CitationReference } from '@/types/citations';
 import { cn } from '@/lib/utils';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useMessageNavigation } from '@/utils/messageNavigation';
 
 interface CitationComponentProps {
+  messageId: string;
   citations: Citation[];
   references: CitationReference[];
   minimizeAIChat?: () => void;
   className?: string;
-  highlightedCitationId?: string;
+  highlightedCitation?: {
+    messageId: string;
+    citationId: string;
+  } | null;
   onNavigateToMessage: (messageId: string, channelId: string | null, userId: string | null) => void;
+  setHighlightedCitation: (highlight: { messageId: string; citationId: string; } | null) => void;
+  showAllCitations?: boolean;
+  setShowAllCitations?: (show: boolean) => void;
 }
 
 function ReferencePreview({ citation }: { citation: Citation }) {
@@ -37,7 +44,8 @@ function CitationCard({
   onMouseLeave,
   showPreview,
   highlighted = false,
-  onNavigateToMessage
+  onNavigateToMessage,
+  onHighlight
 }: { 
   citation: Citation;
   minimizeAIChat?: () => void;
@@ -46,11 +54,15 @@ function CitationCard({
   showPreview: boolean;
   highlighted?: boolean;
   onNavigateToMessage: (messageId: string, channelId: string | null, userId: string | null) => void;
+  onHighlight: (citationId: string) => void;
 }) {
   const { navigate } = useMessageNavigation();
 
   const handleClick = () => {
-    // First navigate to the channel/DM
+    // First update the highlight state
+    onHighlight(citation.id);
+
+    // Then navigate to the channel/DM
     onNavigateToMessage(
       citation.messageId,
       citation.metadata.channelId || null,
@@ -117,22 +129,45 @@ function CitationCard({
 }
 
 function ReferenceList({ 
+  messageId,
   citations, 
   minimizeAIChat,
-  highlightedCitationId,
-  onNavigateToMessage
+  highlightedCitation,
+  onNavigateToMessage,
+  onHighlight,
+  showAllCitations: externalShowAllCitations,
+  setShowAllCitations: externalSetShowAllCitations
 }: { 
+  messageId: string;
   citations: Citation[]; 
   minimizeAIChat?: () => void;
-  highlightedCitationId?: string;
+  highlightedCitation?: {
+    messageId: string;
+    citationId: string;
+  } | null;
   onNavigateToMessage: (messageId: string, channelId: string | null, userId: string | null) => void;
+  onHighlight: (citationId: string) => void;
+  showAllCitations?: boolean;
+  setShowAllCitations?: (show: boolean) => void;
 }) {
   const [hoveredCitation, setHoveredCitation] = useState<string | null>(null);
-  const [showAllCitations, setShowAllCitations] = useState(false);
+  const [internalShowAllCitations, setInternalShowAllCitations] = useState(false);
+
+  // Use external state if provided, otherwise use internal state
+  const showAll = externalShowAllCitations ?? internalShowAllCitations;
+  const setShowAll = externalSetShowAllCitations ?? setInternalShowAllCitations;
 
   const topCitations = citations.slice(0, 3);
   const remainingCitations = citations.slice(3);
   const hasMoreCitations = citations.length > 3;
+
+  // Show all citations if a citation below the fold is highlighted for this message
+  useEffect(() => {
+    if (highlightedCitation?.messageId === messageId && 
+        remainingCitations.some(c => c.id === highlightedCitation.citationId)) {
+      setShowAll(true);
+    }
+  }, [highlightedCitation, messageId, remainingCitations, setShowAll]);
 
   return (
     <div className="space-y-4">
@@ -145,17 +180,18 @@ function ReferenceList({
             onMouseEnter={() => setHoveredCitation(citation.id)}
             onMouseLeave={() => setHoveredCitation(null)}
             showPreview={hoveredCitation === citation.id}
-            highlighted={citation.id === highlightedCitationId}
+            highlighted={highlightedCitation?.messageId === messageId && highlightedCitation?.citationId === citation.id}
             onNavigateToMessage={onNavigateToMessage}
+            onHighlight={onHighlight}
           />
         ))}
       </div>
 
       {hasMoreCitations && (
         <>
-          {!showAllCitations ? (
+          {!showAll ? (
             <button
-              onClick={() => setShowAllCitations(true)}
+              onClick={() => setShowAll(true)}
               className="flex items-center justify-center w-full py-2 text-sm text-gray-600 dark:text-gray-300 
                        hover:text-gray-900 dark:hover:text-white transition-colors duration-200"
             >
@@ -173,13 +209,14 @@ function ReferenceList({
                     onMouseEnter={() => setHoveredCitation(citation.id)}
                     onMouseLeave={() => setHoveredCitation(null)}
                     showPreview={hoveredCitation === citation.id}
-                    highlighted={citation.id === highlightedCitationId}
+                    highlighted={highlightedCitation?.messageId === messageId && highlightedCitation?.citationId === citation.id}
                     onNavigateToMessage={onNavigateToMessage}
+                    onHighlight={onHighlight}
                   />
                 ))}
               </div>
               <button
-                onClick={() => setShowAllCitations(false)}
+                onClick={() => setShowAll(false)}
                 className="flex items-center justify-center w-full py-2 text-sm text-gray-600 dark:text-gray-300 
                          hover:text-gray-900 dark:hover:text-white transition-colors duration-200"
               >
@@ -195,20 +232,38 @@ function ReferenceList({
 }
 
 export function CitationComponent({
+  messageId,
   citations,
   references,
   minimizeAIChat,
   className,
-  highlightedCitationId,
-  onNavigateToMessage
+  highlightedCitation,
+  onNavigateToMessage,
+  setHighlightedCitation,
+  showAllCitations,
+  setShowAllCitations
 }: CitationComponentProps) {
+  const handleHighlight = (citationId: string) => {
+    // If clicking the same citation that's already highlighted, unhighlight it
+    if (highlightedCitation?.messageId === messageId && highlightedCitation?.citationId === citationId) {
+      setHighlightedCitation(null);
+    } else {
+      // Otherwise highlight the clicked citation
+      setHighlightedCitation({ messageId, citationId });
+    }
+  };
+
   return (
     <div className={cn("space-y-4", className)}>
       <ReferenceList 
+        messageId={messageId}
         citations={citations} 
         minimizeAIChat={minimizeAIChat} 
-        highlightedCitationId={highlightedCitationId}
+        highlightedCitation={highlightedCitation}
         onNavigateToMessage={onNavigateToMessage}
+        onHighlight={handleHighlight}
+        showAllCitations={showAllCitations}
+        setShowAllCitations={setShowAllCitations}
       />
     </div>
   );

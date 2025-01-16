@@ -17,7 +17,7 @@
 [ ] thread indicator not updating in main chat log.
 [ ] isPressed().cite > 3 ? show all : null 
 [ ] citation misnumbering
-[ ] channel nav on cite click scrolls down
+[X] channel nav on cite click scrolls down
 [X] Add channel metadata to pinecone and system prompt.
 [X] Reload loses spot
 [X] Citation UI
