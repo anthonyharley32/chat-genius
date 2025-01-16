@@ -1,38 +1,58 @@
-from fastapi import FastAPI # type: ignore
-from fastapi.middleware.cors import CORSMiddleware # type: ignore
-from .routes import chat
-from dotenv import load_dotenv # type: ignore
-import os
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from .api import voice, synthesis
 import logging
+import os
 
 # Configure logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Load environment variables at startup
-load_dotenv('/app/.env.local')
+# Initialize FastAPI app
+app = FastAPI(
+    title="ChatGenius AI Voice API",
+    description="API for voice synthesis and management using ElevenLabs",
+    version="1.0.0"
+)
 
-# Log environment variables (excluding sensitive values)
-logger.debug("Environment variables loaded:")
-logger.debug(f"PINECONE_ENVIRONMENT: {os.getenv('PINECONE_ENVIRONMENT')}")
-logger.debug(f"PINECONE_INDEX_NAME: {os.getenv('PINECONE_INDEX_NAME')}")
-logger.debug("OPENAI_API_KEY: [Present]" if os.getenv('OPENAI_API_KEY') else "OPENAI_API_KEY: [Missing]")
-logger.debug("PINECONE_API_KEY: [Present]" if os.getenv('PINECONE_API_KEY') else "PINECONE_API_KEY: [Missing]")
-
-app = FastAPI()
-
-# Add CORS middleware
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://web:3000"],
+    allow_origins=["*"],  # In production, replace with specific origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Include routers
+app.include_router(voice.router)
+app.include_router(synthesis.router)
+
+@app.on_event("startup")
+async def startup_event():
+    """
+    Verify required environment variables on startup
+    """
+    required_vars = [
+        "ELEVENLABS_API_KEY",
+        "NEXT_PUBLIC_SUPABASE_URL",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY"
+    ]
+    
+    missing_vars = [var for var in required_vars if not os.getenv(var)]
+    if missing_vars:
+        error_msg = f"Missing required environment variables: {', '.join(missing_vars)}"
+        logger.error(error_msg)
+        raise RuntimeError(error_msg)
+        
+    logger.info("All required environment variables found")
+
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy"}
-
-# Add prefix to router
-app.include_router(chat.router, prefix="/api") 
+    """
+    Basic health check endpoint
+    """
+    return {
+        "status": "healthy",
+        "message": "Voice API is running"
+    } 
