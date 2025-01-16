@@ -349,7 +349,7 @@ export function ChatModal({ isOpen, onClose, userName = "User" }: ChatModalProps
                               <CitationComponent
                                 citations={citations}
                                 references={references}
-                                minimizeAIChat={onClose}
+                                minimizeAIChat={() => setIsMinimized(true)}
                                 className="mt-4 border-t pt-4"
                                 highlightedCitationId={highlightedCitationId}
                                 onNavigateToMessage={handleNavigateToMessage}

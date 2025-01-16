@@ -4,6 +4,7 @@ import { useMessageNavigation } from '@/utils/messageNavigation';
 import { AIMessage } from '@/types/ai';
 import { CitationComponent } from './CitationComponent';
 import { Citation } from '@/types/citations';
+import { useRouter } from 'next/navigation';
 
 interface AIResponse {
   content: string;
@@ -16,6 +17,17 @@ export function AIChat() {
   const [isMinimized, setIsMinimized] = useState(false);
   const { sendMessage, isLoading, error } = useAIChat();
   const { navigate } = useMessageNavigation();
+  const router = useRouter();
+
+  const handleNavigateToMessage = (messageId: string, channelId: string | null, userId: string | null) => {
+    if (channelId) {
+      // Navigate to channel
+      router.push(`/chat?type=channel&channelId=${channelId}`);
+    } else if (userId) {
+      // Navigate to DM
+      router.push(`/chat?type=dm&userId=${userId}`);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,10 +47,6 @@ export function AIChat() {
 
   const handleMinimize = () => {
     setIsMinimized(true);
-  };
-
-  const handleCitationClick = (messageId: string) => {
-    navigate(messageId, { minimizeAIChat: handleMinimize });
   };
 
   if (isMinimized) {
@@ -88,6 +96,7 @@ export function AIChat() {
               citations={response.citations} 
               references={[]} 
               minimizeAIChat={handleMinimize}
+              onNavigateToMessage={handleNavigateToMessage}
             />
           )}
         </div>
