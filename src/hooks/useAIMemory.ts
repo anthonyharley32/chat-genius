@@ -51,13 +51,6 @@ export function useAIMemory(targetUserId?: string) {
         .single();
 
       if (error) throw error;
-      
-      // Update local history immediately
-      setHistory(prev => [...prev, data]);
-      
-      // Refresh history to ensure consistency
-      fetchHistory();
-      
       return data;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add message');
@@ -66,7 +59,7 @@ export function useAIMemory(targetUserId?: string) {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id, targetUserId, supabase, fetchHistory]);
+  }, [user?.id, targetUserId, supabase]);
 
   // Fetch avatar settings for the target user
   const fetchAvatarSettings = useCallback(async () => {
@@ -119,13 +112,51 @@ export function useAIMemory(targetUserId?: string) {
     }
   }, [user?.id, supabase]);
 
-  // Load initial data
+  // Load initial data and set up real-time subscription
   useEffect(() => {
-    if (targetUserId) {
-      fetchHistory();
-      fetchAvatarSettings();
-    }
-  }, [targetUserId, fetchHistory, fetchAvatarSettings]);
+    if (!targetUserId || !user?.id) return;
+
+    fetchHistory();
+    fetchAvatarSettings();
+
+    // Set up real-time subscriptions
+    const chatChannel = supabase
+      .channel(`ai_chat_${targetUserId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'ai_chat_history',
+          filter: `target_user_id=eq.${targetUserId}`,
+        },
+        () => {
+          fetchHistory();
+        }
+      )
+      .subscribe();
+
+    const avatarChannel = supabase
+      .channel(`ai_avatar_${targetUserId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'ai_avatar_settings',
+          filter: `user_id=eq.${targetUserId}`,
+        },
+        () => {
+          fetchAvatarSettings();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(chatChannel);
+      supabase.removeChannel(avatarChannel);
+    };
+  }, [targetUserId, user?.id, fetchHistory, fetchAvatarSettings, supabase]);
 
   return {
     history,
