@@ -5,7 +5,7 @@ import traceback
 from ..services.chat_service import ChatService
 from ..services.pinecone_service import PineconeService
 import os
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 router = APIRouter()
 logging.basicConfig(level=logging.INFO)
@@ -16,6 +16,7 @@ chat_service = ChatService()
 class ChatRequest(BaseModel):
     message: str
     user_id: str
+    avatar_instructions: Optional[str] = None
 
 class UpsertMessageRequest(BaseModel):
     message: str
@@ -38,10 +39,13 @@ async def chat(request: ChatRequest):
         logger.info("=== Chat Request Received ===")
         logger.info(f"Message: {request.message}")
         logger.info(f"User ID: {request.user_id}")
+        if request.avatar_instructions:
+            logger.info("Avatar instructions provided")
         
         response_data = await chat_service.generate_response(
             message=request.message,
-            user_id=request.user_id
+            user_id=request.user_id,
+            avatar_instructions=request.avatar_instructions
         )
         logger.info("Response generated successfully")
         return response_data

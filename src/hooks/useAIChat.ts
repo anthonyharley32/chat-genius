@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useUser } from '@/hooks/useUser';
 import { AIMessage } from '@/types/ai-chat';
+import { useAIMemory } from './useAIMemory';
 
 interface AIResponse {
   response: string;
@@ -22,10 +23,11 @@ interface AIResponse {
   }[];
 }
 
-export function useAIChat() {
+export function useAIChat(targetUserId: string) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { user } = useUser();
+  const { addMessage, avatarSettings } = useAIMemory(targetUserId);
 
   const sendMessage = async (message: string): Promise<AIMessage> => {
     if (!user?.id) {
@@ -36,6 +38,12 @@ export function useAIChat() {
     setError(null);
 
     try {
+      // Store user message in history
+      await addMessage({
+        content: message,
+        role: 'user'
+      });
+
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
@@ -43,7 +51,8 @@ export function useAIChat() {
         },
         body: JSON.stringify({
           message,
-          user_id: user.id
+          user_id: user.id,
+          avatar_instructions: avatarSettings?.instructions || null
         }),
       });
 
@@ -54,6 +63,12 @@ export function useAIChat() {
 
       const data: AIResponse = await response.json();
       
+      // Store AI response in history
+      await addMessage({
+        content: data.response,
+        role: 'assistant'
+      });
+
       return {
         id: Date.now().toString() + '-assistant',
         role: 'assistant',

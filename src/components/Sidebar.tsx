@@ -341,6 +341,7 @@ export default function Sidebar({
         isOpen={selectedChatUser !== null}
         onClose={() => setSelectedChatUser(null)}
         userName={users.find(u => u.id === selectedChatUser)?.full_name}
+        targetUserId={selectedChatUser || ''}
       />
     </>
   );

@@ -19,7 +19,8 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify({
         message: body.message,
-        user_id: body.user_id
+        user_id: body.user_id,
+        avatar_instructions: body.avatar_instructions || null
       }),
     });
 

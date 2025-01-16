@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAIChat } from '@/hooks/useAIChat';
+import { useAIMemory } from '@/hooks/useAIMemory';
 import { useMessageNavigation } from '@/utils/messageNavigation';
 import { AIMessage } from '@/types/ai';
 import { CitationComponent } from './CitationComponent';
@@ -12,7 +13,11 @@ interface AIResponse {
   citations?: Citation[];
 }
 
-export function AIChat() {
+interface AIchatProps {
+  targetUserId: string;
+}
+
+export function AIChat({ targetUserId }: AIchatProps) {
   const [message, setMessage] = useState('');
   const [response, setResponse] = useState<AIResponse | null>(null);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -21,16 +26,15 @@ export function AIChat() {
     citationId: string;
   } | null>(null);
   const [showAllCitations, setShowAllCitations] = useState(false);
-  const { sendMessage, isLoading, error } = useAIChat();
+  const { sendMessage, isLoading, error } = useAIChat(targetUserId);
+  const { history } = useAIMemory(targetUserId);
   const { navigate } = useMessageNavigation();
   const router = useRouter();
 
   const handleNavigateToMessage = (messageId: string, channelId: string | null, userId: string | null) => {
     if (channelId) {
-      // Navigate to channel
       router.push(`/chat?type=channel&channelId=${channelId}`);
     } else if (userId) {
-      // Navigate to DM
       router.push(`/chat?type=dm&userId=${userId}`);
     }
   };
@@ -70,6 +74,39 @@ export function AIChat() {
 
   return (
     <div className="p-4">
+      <div className="mb-4 space-y-4 max-h-[60vh] overflow-y-auto">
+        {history.map((msg) => (
+          <div
+            key={msg.id}
+            className={`p-3 rounded-lg ${
+              msg.role === 'user' 
+                ? 'bg-blue-500 text-white ml-auto max-w-[80%]' 
+                : 'bg-gray-100 text-gray-900 mr-auto max-w-[80%]'
+            }`}
+          >
+            <p className="whitespace-pre-wrap">{msg.content}</p>
+          </div>
+        ))}
+        {response && !history.find(msg => msg.id === response.id) && (
+          <div className="mt-4 p-4 bg-gray-100 rounded">
+            <p className="whitespace-pre-wrap">{response.content}</p>
+            {response.citations && response.citations.length > 0 && (
+              <CitationComponent 
+                messageId={response.id}
+                citations={response.citations} 
+                references={[]} 
+                minimizeAIChat={handleMinimize}
+                onNavigateToMessage={handleNavigateToMessage}
+                highlightedCitation={highlightedCitation}
+                setHighlightedCitation={setHighlightedCitation}
+                showAllCitations={showAllCitations}
+                setShowAllCitations={setShowAllCitations}
+              />
+            )}
+          </div>
+        )}
+      </div>
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <textarea
@@ -92,26 +129,6 @@ export function AIChat() {
       {error && (
         <div className="mt-4 p-2 bg-red-100 text-red-700 rounded">
           {error}
-        </div>
-      )}
-
-      {response && (
-        <div className="mt-4 p-4 bg-gray-100 rounded">
-          <h3 className="font-bold mb-2">Response:</h3>
-          <p className="whitespace-pre-wrap">{response.content}</p>
-          {response.citations && response.citations.length > 0 && (
-            <CitationComponent 
-              messageId={response.id}
-              citations={response.citations} 
-              references={[]} 
-              minimizeAIChat={handleMinimize}
-              onNavigateToMessage={handleNavigateToMessage}
-              highlightedCitation={highlightedCitation}
-              setHighlightedCitation={setHighlightedCitation}
-              showAllCitations={showAllCitations}
-              setShowAllCitations={setShowAllCitations}
-            />
-          )}
         </div>
       )}
     </div>

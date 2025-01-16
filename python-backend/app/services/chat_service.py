@@ -57,7 +57,7 @@ class ChatService:
                 
         return "\n".join(context_parts)
 
-    async def generate_response(self, message: str, user_id: str) -> Dict[str, Any]:
+    async def generate_response(self, message: str, user_id: str, avatar_instructions: str = None) -> Dict[str, Any]:
         try:
             logger.debug("Searching for similar messages...")
             similar_messages = await self.pinecone_service.query_similar(message, top_k=5)
@@ -107,7 +107,7 @@ class ChatService:
                         "referenceText": str(i)
                     })
             
-            # Create system message with citation instructions
+            # Create base system message
             system_message = """You are a helpful AI assistant with access to previous messages as numbered references.
 You should actively use these references to support your responses. When you mention ANY information from the references,
 you MUST cite them using the {ref:N} format where N is the reference number.
@@ -122,12 +122,15 @@ Example good citations:
 - "The project uses TypeScript for type safety {ref:1} and implements React hooks for state management {ref:2}"
 - "Based on the previous implementation {ref:1}, which had performance issues with large datasets {ref:2}, we should..."
 
-Do not explicitly say “Reference [N]” or “available references” in your final responses. Instead, use phrases like “from what I could find...” or “based on the material I have...” when citing. If you cannot find specific information, respond deterministically (e.g., “From what I can find, that information is not specified.”).**
+Do not explicitly say "Reference [N]" or "available references" in your final responses. Take ownership of the information you are citing. Instead, use phrases like "from what I could find..." or "based on the material I have..." when citing. If you cannot find specific information, respond deterministically (e.g., "From what I can find, that information is not specified.")."""
 
-
-Available references:
-""" + "\n".join(filtered_messages)
+            # Add references
+            system_message += "\n\nAvailable references:\n" + "\n".join(filtered_messages)
             
+               # Add avatar instructions if provided
+            if avatar_instructions:
+                system_message += f"\n\nPersonality Instructions:\n{avatar_instructions}"
+
             # Create messages array
             messages = [
                 SystemMessage(content=system_message),

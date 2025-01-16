@@ -398,3 +398,31 @@ BEGIN
     );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Drop existing AI-related tables if they exist
+DROP TABLE IF EXISTS public.ai_chat_history CASCADE;
+DROP TABLE IF EXISTS public.ai_avatar_settings CASCADE;
+
+-- AI Avatar settings table (for user's avatar instructions)
+CREATE TABLE public.ai_avatar_settings (
+    user_id uuid references public.users(id) on delete cascade primary key,
+    instructions text,
+    created_at timestamptz default now(),
+    updated_at timestamptz default now()
+);
+
+-- AI Chat History table
+CREATE TABLE public.ai_chat_history (
+    id uuid default gen_random_uuid() primary key,
+    user_id uuid references public.users(id) on delete cascade,
+    target_user_id uuid references public.users(id) on delete cascade,
+    content text not null,
+    role text not null check (role in ('user', 'assistant')),
+    created_at timestamptz default now(),
+    updated_at timestamptz default now()
+);
+
+-- Add indexes for performance
+CREATE INDEX idx_ai_chat_history_user_id ON public.ai_chat_history(user_id);
+
+-- Function to create default workspace and channels 

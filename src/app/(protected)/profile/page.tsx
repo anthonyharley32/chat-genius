@@ -8,6 +8,7 @@ import { useUserStore } from '@/store/userStore';
 import { StatusDot } from '@/components/StatusDot';
 import { statusType, StatusType } from '@/types/status';
 import { authLogger } from '@/utils/logger';
+import { useAIMemory } from '@/hooks/useAIMemory';
 
 const TIMEZONES = [
   'Anchorage (AKST) -09:00 UTC',
@@ -62,10 +63,12 @@ export default function ProfilePage() {
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
+  const [instructions, setInstructions] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
   const [timezone, setTimezone] = useState('');
   const avatar = useUserStore((state) => state.avatar);
   const setAvatar = useUserStore((state) => state.setAvatar);
+  const { avatarSettings, updateAvatarSettings } = useAIMemory();
   const [showSuggestions, setShowSuggestions] = useState(false);
   const timezoneRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -105,6 +108,12 @@ export default function ProfilePage() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (avatarSettings?.instructions) {
+      setInstructions(avatarSettings.instructions);
+    }
+  }, [avatarSettings]);
 
   async function getProfile() {
     setIsLoading(true);
@@ -175,6 +184,9 @@ export default function ProfilePage() {
         .eq('id', user.id);
 
       if (error) throw error;
+
+      await updateAvatarSettings(instructions);
+
       router.push('/chat');
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -375,6 +387,20 @@ export default function ProfilePage() {
                   onChange={(e) => setBio(e.target.value)}
                   className="mt-1 block w-full rounded-md border p-2"
                   rows={3}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">AI Avatar Instructions</label>
+                <p className="text-sm text-gray-500 mb-2">
+                  Customize how your AI avatar behaves and responds to others. These instructions will guide its personality.
+                </p>
+                <textarea
+                  value={instructions}
+                  onChange={(e) => setInstructions(e.target.value)}
+                  placeholder="Example: Be friendly and casual, use emojis occasionally, and focus on being helpful while maintaining a positive tone."
+                  className="mt-1 block w-full rounded-md border p-2"
+                  rows={4}
                 />
               </div>
 

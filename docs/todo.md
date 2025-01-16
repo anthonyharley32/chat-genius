@@ -1,9 +1,9 @@
 ###TODO
+[ ] User selective Vector Storage
 [ ] Voice Synthesis
 [ ] Video Synthesis
 [ ] TL;DR Function
 [ ] Avatar Upload with image generation
-[ ] User selective Vector Storage
 [X] RAG prompting
 [X] Chat Modal
 [X] RAG Chatbot
@@ -27,9 +27,11 @@
 
 
 ###UI
+[ ] loading sign during login
+[ ] move "searching..." to top of page
+[ ] Message settings
 [ ] isolated videos w/ sound
 [ ] show display name not full name.
-[ ] shows search result with space on each side.
 [ ] Code blocks content select.
 [ ] Mobile compatible
 [ ] Sidebar scrollbar visibility.
@@ -46,6 +48,8 @@
 [X] notifications don't show up for yourself.
 [X] Confirm password
 [X] Minimized AI chat = blue
+[X] shows search result with space on each side.
+
 
 
 
@@ -54,6 +58,8 @@
 
 
 ###NICE-TO-HAVE
+[ ] Edit message
+[ ] Delete message
 [ ] Workspaces
 [ ] Poll creation
 [ ] navbar pp hover options
@@ -67,10 +73,7 @@
 ###UTILITIES
 [ ] Add error handling utility for standardized error messages and handling
 [ ] Add data validation utility for input validation (emails, passwords, etc.)
-[ ] Implement persistent caching with Redis or similar for:
-  [ ] User avatars
-  [ ] Channel lists
-  [ ] Frequently accessed messages
+[ ] Implement persistent caching with Redis or similar for user avatar, channel lists, and frequently accessed messages
 [ ] Move rate limiter to use persistent storage
 [ ] Add comprehensive file upload handling:
   [ ]  Better error messages for failed uploads
@@ -79,6 +82,13 @@
   [ ]  Automatic retries for failed uploads
   [ ]  Cleanup of failed upload artifacts
 [ ] Add request/response logging for API calls
+[ ] Scroll pagination
+--AI Chat History
+Performance Considerations:
+   - Implement message batching
+   - Add proper pagination
+   - Cache recent messages
+   - Optimize re-renders
 
 
 
