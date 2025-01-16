@@ -17,11 +17,14 @@ export interface AIChatHistory {
   updated_at: string;
   citations?: Citation[];
   references?: CitationReference[];
+  citation_references?: CitationReference[];
 }
 
 export interface AIMemoryMessage {
   content: string;
   role: 'user' | 'assistant';
+  citations?: Citation[];
+  references?: CitationReference[];
 }
 
 // For creating new chat history entries
@@ -30,4 +33,6 @@ export interface CreateAIChatHistoryParams {
   target_user_id: string;
   content: string;
   role: 'user' | 'assistant';
+  citations?: Citation[];
+  references?: CitationReference[];
 } 

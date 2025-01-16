@@ -140,6 +140,14 @@ Do not explicitly say "Reference [N]" or "available references" in your final re
             logger.debug("Generating response with citations")
             response = await self.chat.agenerate([messages])
             
+            # Add debug logging
+            logger.debug("LLM Response:")
+            logger.debug(response.generations[0][0].text)
+            logger.debug("Citations:")
+            logger.debug(citations)
+            logger.debug("References:")
+            logger.debug(references)
+            
             return {
                 "response": response.generations[0][0].text,
                 "citations": citations,

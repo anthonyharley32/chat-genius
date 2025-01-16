@@ -24,7 +24,15 @@ export function useAIMemory(targetUserId?: string) {
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setHistory(data || []);
+      
+      // Map citation_references back to references
+      const mappedData = data?.map(item => ({
+        ...item,
+        references: item.citation_references,
+        citation_references: undefined
+      })) || [];
+      
+      setHistory(mappedData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch chat history');
       console.error('Error fetching chat history:', err);
@@ -45,7 +53,9 @@ export function useAIMemory(targetUserId?: string) {
           user_id: user.id,
           target_user_id: targetUserId,
           content: params.content,
-          role: params.role
+          role: params.role,
+          citations: params.citations,
+          citation_references: params.references
         }])
         .select()
         .single();

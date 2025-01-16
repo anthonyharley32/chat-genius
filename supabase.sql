@@ -418,6 +418,8 @@ CREATE TABLE public.ai_chat_history (
     target_user_id uuid references public.users(id) on delete cascade,
     content text not null,
     role text not null check (role in ('user', 'assistant')),
+    citations jsonb,
+    citation_references jsonb,
     created_at timestamptz default now(),
     updated_at timestamptz default now()
 );

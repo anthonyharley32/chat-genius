@@ -23,6 +23,11 @@ interface ChatModalProps {
 }
 
 function formatMessageWithCitations(content: string, references: CitationReference[], onCitationClick: (citationId: string) => void) {
+  // Add debug logging
+  console.log('Debug - Formatting message with citations:');
+  console.log('Content:', content);
+  console.log('References:', references);
+
   // Create a mapping of reference numbers to citation IDs
   const refToCitationMap = new Map(
     references.map(ref => [ref.referenceText, ref.citationId])
@@ -36,38 +41,55 @@ function formatMessageWithCitations(content: string, references: CitationReferen
     uniqueRefs.map((ref, index) => [ref, index + 1])
   );
   
+  console.log('Debug - Reference maps:');
+  console.log('refToCitationMap:', Object.fromEntries(refToCitationMap));
+  console.log('displayNumberMap:', Object.fromEntries(displayNumberMap));
+  
   // Split content at citation markers
   const parts = content.split(/(\{ref:\d+\})/);
+  console.log('Debug - Split parts:', parts);
   
-  return parts.map((part, index) => {
-    // Check if this part is a citation marker
-    const match = part.match(/\{ref:(\d+)\}/);
-    if (match) {
-      const refNumber = match[1];
-      const citationId = refToCitationMap.get(refNumber);
-      const displayNumber = displayNumberMap.get(refNumber);
-      
-      if (citationId && displayNumber) {
-        return (
-          <button
-            key={index}
-            onClick={() => {
-              if (citationId) {
-                onCitationClick(citationId);
-              }
-            }}
-            className="inline-flex items-center px-1.5 py-0.5 mx-0.5 bg-blue-100 dark:bg-blue-900/30 
-                     text-blue-700 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-800/30 
-                     transition-colors duration-200 text-sm"
-            aria-label={`View citation ${displayNumber}`}
-          >
-            [{displayNumber}]
-          </button>
-        );
-      }
-    }
-    return <span key={index}>{part}</span>;
-  });
+  // Map the parts to React elements and wrap them in a parent div
+  return (
+    <div className="whitespace-pre-wrap">
+      {parts.map((part, index) => {
+        // Check if this part is a citation marker
+        const match = part.match(/\{ref:(\d+)\}/);
+        if (match) {
+          const refNumber = match[1];
+          const citationId = refToCitationMap.get(refNumber);
+          const displayNumber = displayNumberMap.get(refNumber);
+          
+          console.log('Debug - Citation part:', {
+            part,
+            refNumber,
+            citationId,
+            displayNumber
+          });
+          
+          if (citationId && displayNumber) {
+            return (
+              <button
+                key={index}
+                onClick={() => {
+                  if (citationId) {
+                    onCitationClick(citationId);
+                  }
+                }}
+                className="inline-flex items-center px-1.5 py-0.5 mx-0.5 bg-blue-100 dark:bg-blue-900/30 
+                         text-blue-700 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-800/30 
+                         transition-colors duration-200 text-sm"
+                aria-label={`View citation ${displayNumber}`}
+              >
+                [{displayNumber}]
+              </button>
+            );
+          }
+        }
+        return <span key={index}>{part}</span>;
+      })}
+    </div>
+  );
 }
 
 function getUsedCitations(content: string, citations: Citation[], references: CitationReference[]) {

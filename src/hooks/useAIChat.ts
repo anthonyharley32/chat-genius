@@ -14,6 +14,11 @@ interface AIResponse {
       timestamp: string;
       userId: string;
       userName: string;
+      channelId?: string;
+      channelName?: string;
+      isDirectMessage: boolean;
+      receiverId?: string;
+      receiverName?: string;
     }
   }[];
   references?: {
@@ -63,10 +68,19 @@ export function useAIChat(targetUserId: string) {
 
       const data: AIResponse = await response.json();
       
+      // Add debug logging
+      console.log('Debug - AI Response:', {
+        content: data.response,
+        citations: data.citations,
+        references: data.references
+      });
+      
       // Store AI response in history
       await addMessage({
         content: data.response,
-        role: 'assistant'
+        role: 'assistant',
+        citations: data.citations,
+        references: data.references
       });
 
       return {
