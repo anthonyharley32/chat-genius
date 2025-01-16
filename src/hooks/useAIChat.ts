@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useUser } from '@/hooks/useUser';
 import { AIMessage } from '@/types/ai-chat';
 import { useAIMemory } from './useAIMemory';
+import { CreateAIChatHistoryParams } from '@/types/ai-memory';
 
 interface AIResponse {
   response: string;
@@ -76,12 +77,13 @@ export function useAIChat(targetUserId: string) {
       });
       
       // Store AI response in history
-      await addMessage({
+      const aiMessage: Omit<CreateAIChatHistoryParams, 'user_id' | 'target_user_id'> = {
         content: data.response,
-        role: 'assistant',
+        role: 'assistant' as const,
         citations: data.citations,
         references: data.references
-      });
+      };
+      await addMessage(aiMessage);
 
       return {
         id: Date.now().toString() + '-assistant',

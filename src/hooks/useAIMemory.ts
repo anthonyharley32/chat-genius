@@ -141,10 +141,27 @@ export function useAIMemory(targetUserId?: string) {
           event: '*',
           schema: 'public',
           table: 'ai_chat_history',
-          filter: `target_user_id=eq.${targetUserId}`,
+          filter: `or(target_user_id.eq.${targetUserId},user_id.eq.${targetUserId})`,
         },
-        () => {
-          fetchHistory();
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const newMessage: AIChatHistory = {
+              ...payload.new,
+              references: payload.new.citation_references,
+              citation_references: undefined,
+              id: payload.new.id,
+              user_id: payload.new.user_id,
+              target_user_id: payload.new.target_user_id,
+              content: payload.new.content,
+              role: payload.new.role,
+              created_at: payload.new.created_at,
+              updated_at: payload.new.updated_at,
+            };
+            setHistory(prev => [...prev, newMessage]);
+          } else {
+            // For updates or deletes, fetch the full history to ensure consistency
+            fetchHistory();
+          }
         }
       )
       .subscribe();

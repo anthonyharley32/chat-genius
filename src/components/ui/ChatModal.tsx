@@ -13,6 +13,7 @@ import { MessageHighlight } from '@/components/ui/MessageHighlight';
 import { CitationComponent } from '@/components/ui/CitationComponent';
 import { useRouter } from 'next/navigation';
 import { useAIMemory } from '@/hooks/useAIMemory';
+import { AIChatHistory } from '@/types/ai-memory';
 
 interface ChatModalProps {
   isOpen: boolean;
@@ -177,7 +178,12 @@ export function ChatModal({ isOpen, onClose, userName = "User", targetUserId }: 
   const { sendMessage, isLoading, error } = useAIChat(targetUserId);
   const { user } = useUser();
   const { history } = useAIMemory(targetUserId);
+  const [localHistory, setLocalHistory] = useState<AIChatHistory[]>([]);
   const router = useRouter();
+
+  useEffect(() => {
+    setLocalHistory(history);
+  }, [history]);
 
   const handleNavigateToMessage = (messageId: string, channelId: string | null, userId: string | null) => {
     if (channelId) {
@@ -196,7 +202,7 @@ export function ChatModal({ isOpen, onClose, userName = "User", targetUserId }: 
 
   useEffect(() => {
     scrollToBottom();
-  }, [history]);
+  }, [localHistory]);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -230,11 +236,54 @@ export function ChatModal({ isOpen, onClose, userName = "User", targetUserId }: 
       return;
     }
 
+    const userTempId = `temp-${Date.now()}-user`;
+    const aiTempId = `temp-${Date.now()}-ai`;
+    
     try {
-      await sendMessage(message);
+      // Add optimistic user message and AI loading message
+      const optimisticUserMessage: AIChatHistory = {
+        id: userTempId,
+        user_id: user.id,
+        target_user_id: targetUserId,
+        content: message,
+        role: 'user',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      const optimisticAIMessage: AIChatHistory = {
+        id: aiTempId,
+        user_id: targetUserId,
+        target_user_id: user.id,
+        content: "",  // Empty content since we're showing the loading state separately
+        role: 'assistant',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      setLocalHistory(prev => [...prev, optimisticUserMessage, optimisticAIMessage]);
+      
+      // Send the actual message
+      const response = await sendMessage(message);
+      
+      // Update AI message with actual response
+      setLocalHistory(prev => prev.map(msg => {
+        if (msg.id === aiTempId) {
+          return {
+            ...msg,
+            content: response.content,
+            citations: response.citations,
+            references: response.references,
+          };
+        }
+        return msg;
+      }));
+      
       setMessage('');
     } catch (err) {
       console.error('Error getting AI response:', err);
+      // Remove both optimistic messages on error
+      setLocalHistory(prev => prev.filter(msg => msg.id !== userTempId && msg.id !== aiTempId));
     }
   };
 
@@ -314,7 +363,7 @@ export function ChatModal({ isOpen, onClose, userName = "User", targetUserId }: 
                     Please sign in to use the chat.
                   </div>
                 )}
-                {history.map((msg) => (
+                {localHistory.map((msg) => (
                   <MessageHighlight
                     key={msg.id}
                     isHighlighted={msg.id === highlightedMessageId}
@@ -338,31 +387,37 @@ export function ChatModal({ isOpen, onClose, userName = "User", targetUserId }: 
                         ) : (
                           <>
                             <div className="prose prose-sm max-w-none dark:prose-invert">
-                              {msg.references ? (
-                                formatMessageWithCitations(
-                                  msg.content,
-                                  msg.references,
-                                  (citationId) => {
-                                    if (msg.id) {
-                                      handleCitationClick(citationId, msg.id);
+                              {msg.content ? (
+                                msg.references ? (
+                                  formatMessageWithCitations(
+                                    msg.content,
+                                    msg.references,
+                                    (citationId) => {
+                                      if (msg.id) {
+                                        handleCitationClick(citationId, msg.id);
+                                      }
                                     }
-                                  }
+                                  )
+                                ) : (
+                                  <ReactMarkdown
+                                    components={{
+                                      p: ({ children }) => <p className="whitespace-pre-wrap mb-4 last:mb-0">{children}</p>,
+                                      code: ({ children }) => (
+                                        <code className="bg-gray-200 dark:bg-gray-800 rounded px-1 py-0.5">{children}</code>
+                                      ),
+                                      pre: ({ children }) => (
+                                        <pre className="bg-gray-200 dark:bg-gray-800 rounded-md p-3 overflow-x-auto mb-4">{children}</pre>
+                                      ),
+                                    }}
+                                  >
+                                    {msg.content}
+                                  </ReactMarkdown>
                                 )
-                              ) : (
-                                <ReactMarkdown
-                                  components={{
-                                    p: ({ children }) => <p className="whitespace-pre-wrap mb-4 last:mb-0">{children}</p>,
-                                    code: ({ children }) => (
-                                      <code className="bg-gray-200 dark:bg-gray-800 rounded px-1 py-0.5">{children}</code>
-                                    ),
-                                    pre: ({ children }) => (
-                                      <pre className="bg-gray-200 dark:bg-gray-800 rounded-md p-3 overflow-x-auto mb-4">{children}</pre>
-                                    ),
-                                  }}
-                                >
-                                  {msg.content}
-                                </ReactMarkdown>
-                              )}
+                              ) : isLoading && msg.id.startsWith('temp-') && msg.id.endsWith('-ai') ? (
+                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-500 via-gray-900 to-gray-500 animate-[shimmer_2s_infinite] bg-[length:200%_auto]">
+                                  Searching...
+                                </span>
+                              ) : null}
                             </div>
                             {msg.citations && msg.references && msg.id && (() => {
                               const { citations, references } = getUsedCitations(msg.content, msg.citations, msg.references);
@@ -387,14 +442,6 @@ export function ChatModal({ isOpen, onClose, userName = "User", targetUserId }: 
                 ))}
                 <div ref={messagesEndRef} />
               </div>
-
-              {isLoading && (
-                <div className="px-4 py-2">
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-500 via-gray-900 to-gray-500 animate-[shimmer_2s_infinite] bg-[length:200%_auto]">
-                    Searching...
-                  </span>
-                </div>
-              )}
 
               <form onSubmit={handleSubmit} className="p-4 border-t">
                 <div className="flex items-center space-x-2">

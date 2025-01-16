@@ -1,10 +1,10 @@
 ###TODO
-[X] Seperate AI Chats
 [ ] User selective Vector Storage
 [ ] Voice Synthesis
 [ ] Video Synthesis
 [ ] TL;DR Function
 [ ] Avatar Upload with image generation
+[X] Seperate AI Chats
 [X] RAG prompting
 [X] Chat Modal
 [X] RAG Chatbot
