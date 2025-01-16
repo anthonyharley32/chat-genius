@@ -15,28 +15,28 @@
 [ ] fix multiple users on same computer being logged in.
 [ ] after image send, rerenders
 [ ] thread indicator not updating in main chat log.
-[ ] isPressed().cite > 3 ? show all : null 
-[ ] citation misnumbering
+[X] isPressed().cite > 3 ? show all : null 
+[X] citation misnumbering
 [X] channel nav on cite click scrolls down
 [X] Add channel metadata to pinecone and system prompt.
 [X] Reload loses spot
 [X] Citation UI
-[ ] Citation message nav + highlight
+[X] Citation message nav + highlight
 [X] Sidebar scrollable
 
 
 
 ###UI
-[ ] Inline citations highlight citation card.
-[ ] Raise minimized AI chat above message input.
 [ ] isolated videos w/ sound
 [ ] show display name not full name.
 [ ] shows search result with space on each side.
 [ ] Code blocks content select.
 [ ] Mobile compatible
-[ ] Waiting for AI response indicator.
 [ ] Sidebar scrollbar visibility.
 [ ] Inline citations next to periods.
+[X] Waiting for AI response indicator.
+[X] Inline citations highlight citation card.
+[X] Raise minimized AI chat above message input.
 [X] Perplexity style message reference system.
 [X] AI Chat Title Header.
 [X] 4o mini

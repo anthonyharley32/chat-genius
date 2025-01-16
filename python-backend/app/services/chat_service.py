@@ -122,6 +122,9 @@ Example good citations:
 - "The project uses TypeScript for type safety {ref:1} and implements React hooks for state management {ref:2}"
 - "Based on the previous implementation {ref:1}, which had performance issues with large datasets {ref:2}, we should..."
 
+Do not explicitly say “Reference [N]” or “available references” in your final responses. Instead, use phrases like “from what I could find...” or “based on the material I have...” when citing. If you cannot find specific information, respond deterministically (e.g., “From what I can find, that information is not specified.”).**
+
+
 Available references:
 """ + "\n".join(filtered_messages)
             

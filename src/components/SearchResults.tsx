@@ -178,9 +178,9 @@ export default function SearchResults({
     const afterWords = after.split(' ').filter(word => word.length < 20).slice(0, 6).join(' ');
 
     let contextString = '';
-    if (beforeWords) contextString += '...' + beforeWords + ' ';
+    if (beforeWords) contextString += '...' + beforeWords;
     contextString += `<strong>${content.slice(index, index + searchTerm.length)}</strong>`;
-    if (afterWords) contextString += ' ' + afterWords + '...';
+    if (afterWords) contextString += afterWords + '...';
 
     return contextString;
   };
