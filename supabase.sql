@@ -42,7 +42,7 @@ CREATE TABLE public.users (
   avatar_url text default 'defpropic.jpg',
   bio text default '',
   email text not null,
-  status text default 'online' check (status in ('online', 'away', 'busy', 'offline')),
+  status text default 'online',
   status_message text,
   timezone text,
   online boolean default false,
@@ -424,7 +424,32 @@ CREATE TABLE public.ai_chat_history (
     updated_at timestamptz default now()
 );
 
+-- Voice Preferences table
+CREATE TABLE public.voice_preferences (
+    user_id uuid references public.users(id) on delete cascade primary key,
+    voice_id text,  -- ElevenLabs voice ID
+    auto_play boolean default false,  -- Whether to auto-play voice messages
+    custom_voice_id text,  -- ID of user's custom trained voice if they have one
+    created_at timestamptz default now(),
+    updated_at timestamptz default now()
+);
+
 -- Add indexes for performance
 CREATE INDEX idx_ai_chat_history_user_id ON public.ai_chat_history(user_id);
+ 
+ -- Create storage bucket and policies for voice samples
+insert into storage.buckets (id, name, public) 
+values ('voice-samples', 'voice-samples', true);
 
--- Function to create default workspace and channels 
+create policy "Voice samples upload policy"
+  on storage.objects for insert
+  with check (
+    bucket_id = 'voice-samples' 
+    and auth.role() = 'authenticated'
+  );
+
+create policy "Voice samples view policy"
+  on storage.objects for select
+  using ( bucket_id = 'voice-samples' );
+
+ 

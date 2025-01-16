@@ -395,7 +395,7 @@ export default function ProfilePage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700">AI Avatar Instructions</label>
                 <p className="text-sm text-gray-500 mb-2">
-                  Customize how your AI avatar behaves and responds to others. These instructions will guide its personality.
+                  Customize how your AI avatar behaves and responds to others.
                 </p>
                 <textarea
                   value={instructions}
