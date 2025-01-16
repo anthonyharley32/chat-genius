@@ -1,4 +1,5 @@
 ###TODO
+[X] Seperate AI Chats
 [ ] User selective Vector Storage
 [ ] Voice Synthesis
 [ ] Video Synthesis

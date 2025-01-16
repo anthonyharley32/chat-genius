@@ -9,6 +9,7 @@ import { StatusDot } from '@/components/StatusDot';
 import { statusType, StatusType } from '@/types/status';
 import { authLogger } from '@/utils/logger';
 import { useAIMemory } from '@/hooks/useAIMemory';
+import { useUser } from '@/hooks/useUser';
 
 const TIMEZONES = [
   'Anchorage (AKST) -09:00 UTC',
@@ -68,7 +69,8 @@ export default function ProfilePage() {
   const [timezone, setTimezone] = useState('');
   const avatar = useUserStore((state) => state.avatar);
   const setAvatar = useUserStore((state) => state.setAvatar);
-  const { avatarSettings, updateAvatarSettings } = useAIMemory();
+  const { user } = useUser();
+  const { avatarSettings, updateAvatarSettings } = useAIMemory(user?.id);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const timezoneRef = useRef<HTMLDivElement>(null);
   const router = useRouter();

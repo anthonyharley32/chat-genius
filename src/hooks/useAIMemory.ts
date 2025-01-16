@@ -95,16 +95,19 @@ export function useAIMemory(targetUserId?: string) {
         .upsert({
           user_id: user.id,
           instructions,
+          created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
         .select()
-        .single();
+        .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating avatar settings:', error);
+        return null;
+      }
       setAvatarSettings(data);
       return data;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update avatar settings');
       console.error('Error updating avatar settings:', err);
       return null;
     } finally {
