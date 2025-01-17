@@ -109,11 +109,29 @@ class ElevenLabsService:
                 for key, value in labels.items():
                     form[f"labels[{key}]"] = (None, value)
                 
+            # Log request details
+            logger.info(f"Sending voice creation request to ElevenLabs: name={name}, num_files={len(files)}")
+            for i, (_, (filename, file_data, content_type)) in enumerate(files_data):
+                logger.info(f"File {i}: size={len(file_data)} bytes, type={content_type}")
+                
             response = await self.client.post(
                 "/voices/add",
                 files=files_data,
                 data=form
             )
+            
+            # If there's an error, try to get more details
+            if response.status_code != 200:
+                error_detail = "Unknown error"
+                try:
+                    error_json = response.json()
+                    error_detail = error_json.get('detail', error_json)
+                except:
+                    error_detail = response.text or "No error details available"
+                    
+                logger.error(f"ElevenLabs API error ({response.status_code}): {error_detail}")
+                raise Exception(f"ElevenLabs API error: {error_detail}")
+                
             response.raise_for_status()
             return response.json()
             

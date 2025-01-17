@@ -104,16 +104,42 @@ async def train_voice(
                 detail=f"Invalid file type: {file.content_type}. Must be audio."
             )
             
-        logger.info(f"Reading file: {file.filename}")
+        # Read and validate file
+        logger.info(f"Reading file: {file.filename}, content_type: {file.content_type}")
         content = await file.read()
+        file_size = len(content)
+        logger.info(f"File size: {file_size} bytes")
+        
+        # ElevenLabs limits
+        MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+        MIN_FILE_SIZE = 1 * 1024 * 1024   # 1MB
+        
+        if file_size > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File too large. Maximum size is 10MB, got {file_size / 1024 / 1024:.1f}MB"
+            )
+            
+        if file_size < MIN_FILE_SIZE:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File too small. Minimum size is 1MB, got {file_size / 1024 / 1024:.1f}MB"
+            )
             
         # Create labels
         labels = {"description": description} if description else None
         logger.info("Sending to ElevenLabs for voice creation")
         
-        # Add voice to ElevenLabs
-        voice_data = await service.add_voice(name, [content], labels)
-        logger.info(f"Voice created with ID: {voice_data.get('voice_id', 'unknown')}")
+        try:
+            # Add voice to ElevenLabs
+            voice_data = await service.add_voice(name, [content], labels)
+            logger.info(f"Voice created with ID: {voice_data.get('voice_id', 'unknown')}")
+        except Exception as e:
+            logger.error(f"ElevenLabs API error: {str(e)}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"ElevenLabs API error: {str(e)}"
+            )
         
         # Save training sample to storage
         # Create a unique file path using str(user_id)
@@ -146,7 +172,7 @@ async def train_voice(
         raise
     except Exception as e:
         logger.error(f"Error training voice: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to train voice")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/status/{voice_id}")
 async def get_voice_status(

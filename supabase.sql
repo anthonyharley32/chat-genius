@@ -456,14 +456,27 @@ CREATE INDEX idx_ai_chat_history_user_id ON public.ai_chat_history(user_id);
  
  -- Create storage bucket and policies for voice samples
 insert into storage.buckets (id, name, public) 
-values ('voice-samples', 'voice-samples', true);
+values ('voice-samples', 'voice-samples', false);
 
-create policy "Voice samples are publicly accessible"
+create policy "Users can view their own voice samples"
   on storage.objects for select
-  using ( bucket_id = 'voice-samples' );
+  using ( 
+    bucket_id = 'voice-samples' 
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
 
-create policy "Anyone can upload voice samples"
+create policy "Users can upload their own voice samples"
   on storage.objects for insert
-  with check ( bucket_id = 'voice-samples' );
+  with check ( 
+    bucket_id = 'voice-samples' 
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+create policy "Users can delete their own voice samples"
+  on storage.objects for delete
+  using ( 
+    bucket_id = 'voice-samples' 
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
 
  
