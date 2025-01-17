@@ -57,7 +57,12 @@ class PineconeService:
         
     async def upsert_message(self, message: str, metadata: Dict[str, Any]):
         try:
-            logger.info(f"Starting upsert for message: {message[:50]}...")
+            # Skip DM messages
+            if metadata.get('message_type') == 'dm':
+                logger.info(f"Skipping DM message {metadata.get('message_id')}")
+                return False
+                
+            logger.info(f"Starting upsert for channel message: {message[:50]}...")
             
             # Generate embedding
             logger.info("Generating embedding...")
@@ -77,7 +82,7 @@ class PineconeService:
             # Upsert to Pinecone using the correct method
             logger.info("Upserting to Pinecone...")
             await self.vector_store.aadd_documents([document], ids=[vector_id])
-            logger.info(f"Successfully upserted message {vector_id} to Pinecone")
+            logger.info(f"Successfully upserted channel message {vector_id} to Pinecone")
             
             return True
             
