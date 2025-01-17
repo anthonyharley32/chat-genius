@@ -10,6 +10,7 @@ import { statusType, StatusType } from '@/types/status';
 import { authLogger } from '@/utils/logger';
 import { useAIMemory } from '@/hooks/useAIMemory';
 import { useUser } from '@/hooks/useUser';
+import { VoiceSetup } from '@/components/VoiceSetup';
 
 const TIMEZONES = [
   'Anchorage (AKST) -09:00 UTC',
@@ -350,7 +351,10 @@ export default function ProfilePage() {
           
           <div className="mt-8">
             <h2 className="text-xl font-semibold mb-4">Profile Settings</h2>
-            <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); updateProfile(); }}>
+            <form className="space-y-4" onSubmit={(e) => { 
+              e.preventDefault(); 
+              updateProfile(); 
+            }}>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Username</label>
                 <input
@@ -405,6 +409,8 @@ export default function ProfilePage() {
                   rows={4}
                 />
               </div>
+
+              <VoiceSetup />
 
               <div className="relative" ref={timezoneRef}>
                 <label className="block text-sm font-medium text-gray-700">
