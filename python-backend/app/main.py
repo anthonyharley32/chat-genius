@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from .api import voice, synthesis
+from .routes import chat
 import logging
 import os
 
@@ -27,6 +28,7 @@ app.add_middleware(
 # Include routers
 app.include_router(voice.router)
 app.include_router(synthesis.router)
+app.include_router(chat.router, prefix="/api")
 
 @app.on_event("startup")
 async def startup_event():
@@ -36,7 +38,11 @@ async def startup_event():
     required_vars = [
         "ELEVENLABS_API_KEY",
         "NEXT_PUBLIC_SUPABASE_URL",
-        "NEXT_PUBLIC_SUPABASE_ANON_KEY"
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+        "OPENAI_API_KEY",
+        "PINECONE_API_KEY",
+        "PINECONE_INDEX_NAME",
+        "PINECONE_ENVIRONMENT"
     ]
     
     missing_vars = [var for var in required_vars if not os.getenv(var)]

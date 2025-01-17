@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowUp, Maximize2, Minimize2, X } from 'lucide-react';
+import { ArrowUp, Maximize2, Minimize2, X, Play } from 'lucide-react';
 import { AIMessage } from '@/types/ai-chat';
 import { Citation, CitationReference } from '@/types/citations';
 import { useAIChat } from '@/hooks/useAIChat';
@@ -386,38 +386,49 @@ export function ChatModal({ isOpen, onClose, userName = "User", targetUserId }: 
                           <p className="whitespace-pre-wrap">{msg.content}</p>
                         ) : (
                           <>
-                            <div className="prose prose-sm max-w-none dark:prose-invert">
-                              {msg.content ? (
-                                msg.references ? (
-                                  formatMessageWithCitations(
-                                    msg.content,
-                                    msg.references,
-                                    (citationId) => {
-                                      if (msg.id) {
-                                        handleCitationClick(citationId, msg.id);
+                            <div className="flex items-start justify-between">
+                              <div className="prose prose-sm max-w-none dark:prose-invert flex-1">
+                                {msg.content ? (
+                                  msg.references ? (
+                                    formatMessageWithCitations(
+                                      msg.content,
+                                      msg.references,
+                                      (citationId) => {
+                                        if (msg.id) {
+                                          handleCitationClick(citationId, msg.id);
+                                        }
                                       }
-                                    }
+                                    )
+                                  ) : (
+                                    <ReactMarkdown
+                                      components={{
+                                        p: ({ children }) => <p className="whitespace-pre-wrap mb-4 last:mb-0">{children}</p>,
+                                        code: ({ children }) => (
+                                          <code className="bg-gray-200 dark:bg-gray-800 rounded px-1 py-0.5">{children}</code>
+                                        ),
+                                        pre: ({ children }) => (
+                                          <pre className="bg-gray-200 dark:bg-gray-800 rounded-md p-3 overflow-x-auto mb-4">{children}</pre>
+                                        ),
+                                      }}
+                                    >
+                                      {msg.content}
+                                    </ReactMarkdown>
                                   )
-                                ) : (
-                                  <ReactMarkdown
-                                    components={{
-                                      p: ({ children }) => <p className="whitespace-pre-wrap mb-4 last:mb-0">{children}</p>,
-                                      code: ({ children }) => (
-                                        <code className="bg-gray-200 dark:bg-gray-800 rounded px-1 py-0.5">{children}</code>
-                                      ),
-                                      pre: ({ children }) => (
-                                        <pre className="bg-gray-200 dark:bg-gray-800 rounded-md p-3 overflow-x-auto mb-4">{children}</pre>
-                                      ),
-                                    }}
-                                  >
-                                    {msg.content}
-                                  </ReactMarkdown>
-                                )
-                              ) : isLoading && msg.id.startsWith('temp-') && msg.id.endsWith('-ai') ? (
-                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-500 via-gray-900 to-gray-500 animate-[shimmer_2s_infinite] bg-[length:200%_auto]">
-                                  Searching...
-                                </span>
-                              ) : null}
+                                ) : isLoading && msg.id.startsWith('temp-') && msg.id.endsWith('-ai') ? (
+                                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-500 via-gray-900 to-gray-500 animate-[shimmer_2s_infinite] bg-[length:200%_auto]">
+                                    Searching...
+                                  </span>
+                                ) : null}
+                              </div>
+                              {msg.content && !msg.id.startsWith('temp-') && (
+                                <button
+                                  onClick={() => {/* TODO: Add play functionality */}}
+                                  className="ml-2 p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
+                                  aria-label="Play message"
+                                >
+                                  <Play className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                                </button>
+                              )}
                             </div>
                             {msg.citations && msg.references && msg.id && (() => {
                               const { citations, references } = getUsedCitations(msg.content, msg.citations, msg.references);

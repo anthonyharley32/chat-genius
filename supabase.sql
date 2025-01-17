@@ -431,57 +431,57 @@ CREATE TABLE public.ai_chat_history (
     updated_at timestamptz default now()
 );
 
--- Drop existing voice_preferences table
+-- Drop existing voice-related tables
 DROP TABLE IF EXISTS public.voice_preferences CASCADE;
+DROP TABLE IF EXISTS public.voice_training_samples CASCADE;
 
 -- Enhanced Voice Preferences table
 CREATE TABLE public.voice_preferences (
-    user_id uuid references public.users(id) on delete cascade primary key,
-    voice_id text,  -- ElevenLabs voice ID
-    voice_name text, -- Name of the voice in ElevenLabs
-    voice_url text, -- URL for the voice in ElevenLabs
-    preview_url text, -- Preview URL for the voice
-    auto_play boolean default false,
-    is_custom_voice boolean default false,
-    category text check (category in ('premade', 'cloned')),
-    created_at timestamptz default now(),
-    updated_at timestamptz default now()
-);
-
--- Voice Training Samples table (for custom voice creation)
-CREATE TABLE public.voice_training_samples (
     id uuid default gen_random_uuid() primary key,
     user_id uuid references public.users(id) on delete cascade,
-    file_path text not null,  -- Path in voice-samples bucket
-    status text default 'pending' check (status in ('pending', 'processed', 'failed')),
+    voice_id text not null,  -- ElevenLabs voice ID
+    voice_name text not null, -- Name of the voice in ElevenLabs
+    preview_text text not null, -- The text used for the preview
+    preview_url text not null, -- URL to the preview audio file
+    is_custom boolean default false, -- Whether this is a custom trained voice
+    is_active boolean default true, -- Whether this voice is currently active
+    settings jsonb, -- Voice settings (stability, similarity_boost, etc.)
     created_at timestamptz default now(),
-    updated_at timestamptz default now()
+    updated_at timestamptz default now(),
+    UNIQUE(user_id, voice_id)
 );
 
--- Add indexes for performance
-CREATE INDEX idx_ai_chat_history_user_id ON public.ai_chat_history(user_id);
- 
- -- Create storage bucket and policies for voice samples
-insert into storage.buckets (id, name, public) 
-values ('voice-samples', 'voice-samples', false);
+-- Create indexes for better query performance
+CREATE INDEX idx_voice_preferences_user_id ON public.voice_preferences(user_id);
+CREATE INDEX idx_voice_preferences_voice_id ON public.voice_preferences(voice_id);
 
-create policy "Users can view their own voice samples"
-  on storage.objects for select
-  using ( 
+-- Update storage policies for voice-samples bucket to be public
+UPDATE storage.buckets 
+SET public = true 
+WHERE id = 'voice-samples';
+
+-- Drop existing policies
+DROP POLICY IF EXISTS "Users can view their own voice samples" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can upload voice samples" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete their own voice samples" ON storage.objects;
+DROP POLICY IF EXISTS "Voice samples are publicly accessible" ON storage.objects;
+
+
+-- Create new policies for voice samples bucket
+CREATE POLICY "Voice samples are publicly accessible"
+  ON storage.objects FOR SELECT
+  USING ( bucket_id = 'voice-samples' );
+
+CREATE POLICY "Authenticated users can upload voice samples"
+  ON storage.objects FOR INSERT
+  WITH CHECK ( 
     bucket_id = 'voice-samples' 
-    and auth.uid()::text = (storage.foldername(name))[1]
+    AND auth.role() = 'authenticated'
   );
 
-create policy "Users can upload their own voice samples"
-  on storage.objects for insert
-  with check ( 
+CREATE POLICY "Users can delete their own voice samples"
+  ON storage.objects FOR DELETE
+  USING ( 
     bucket_id = 'voice-samples' 
-    and auth.uid()::text = (storage.foldername(name))[1]
-  );
-
-create policy "Users can delete their own voice samples"
-  on storage.objects for delete
-  using ( 
-    bucket_id = 'voice-samples' 
-    and auth.uid()::text = (storage.foldername(name))[1]
+    AND auth.uid()::text = (storage.foldername(name))[1]
   );

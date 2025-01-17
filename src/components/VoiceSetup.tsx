@@ -7,7 +7,12 @@ interface Voice {
   voice_id: string;
   name: string;
   preview_url?: string;
-  category: 'premade' | 'cloned';
+  preview_text?: string;
+  is_custom: boolean;
+  is_active: boolean;
+  settings?: any;
+  voice_preference?: any;
+  category: 'premade' | 'cloned';  // Keep for backward compatibility
 }
 
 interface Recording {
@@ -19,10 +24,20 @@ interface Recording {
   type: 'recording' | 'upload';  // Add type to distinguish between recordings and uploads
 }
 
+interface User {
+  id: string;
+  full_name: string;
+  user_metadata?: {
+    full_name?: string;
+  };
+  // ... other user properties
+}
+
 export function VoiceSetup() {
   const [loading, setLoading] = useState(false);
   const [voices, setVoices] = useState<Voice[]>([]);
-  const [selectedVoice, setSelectedVoice] = useState('');
+  const [selectedDefaultVoice, setSelectedDefaultVoice] = useState('');
+  const [selectedCustomVoice, setSelectedCustomVoice] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<'default' | 'custom' | null>('default');
   const [isCustomVoice, setIsCustomVoice] = useState(false);
@@ -48,6 +63,9 @@ export function VoiceSetup() {
   const customContentRef = useRef<HTMLDivElement>(null);
   const [defaultContentHeight, setDefaultContentHeight] = useState(0);
   const [customContentHeight, setCustomContentHeight] = useState(0);
+  const [currentRecording, setCurrentRecording] = useState<Recording | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isTraining, setIsTraining] = useState(false);
 
   // Add function to save recording to storage
   const saveRecordingToStorage = async (recording: Recording) => {
@@ -65,17 +83,6 @@ export function VoiceSetup() {
         });
 
       if (uploadError) throw uploadError;
-      
-      // Save record to voice_training_samples table
-      const { error: dbError } = await supabase
-        .from('voice_training_samples')
-        .insert({
-          file_path: filePath,
-          status: 'pending'
-        });
-
-      if (dbError) throw dbError;
-      
       return filePath;
     } catch (error) {
       console.error('Error saving recording:', error);
@@ -88,44 +95,22 @@ export function VoiceSetup() {
     if (!user?.id) return;
     
     try {
-      // Get list of files from storage
       const { data: files, error: storageError } = await supabase.storage
         .from('voice-samples')
         .list(user.id);
 
       if (storageError) throw storageError;
 
-      // Get the training samples data
-      const { data: samples, error: dbError } = await supabase
-        .from('voice_training_samples')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(5);
-
-      if (dbError) throw dbError;
-
-      // Create signed URLs for each file
       const recordingsPromises = files.map(async (file) => {
         try {
           const filePath = `${user.id}/${file.name}`;
           const { data: { publicUrl } } = supabase.storage
             .from('voice-samples')
             .getPublicUrl(filePath);
-
-          const sample = samples?.find(s => s.file_path === filePath);
           
-          // Try to fetch the file to verify it exists and is accessible
           const response = await fetch(publicUrl);
           if (!response.ok) {
             console.warn(`File ${filePath} is not accessible, skipping...`);
-            // If file is not accessible, we should clean up the database record
-            if (sample) {
-              await supabase
-                .from('voice_training_samples')
-                .delete()
-                .eq('file_path', filePath);
-            }
             return null;
           }
 
@@ -136,7 +121,7 @@ export function VoiceSetup() {
             id: file.name.replace('.mp3', ''),
             blob,
             duration,
-            timestamp: sample?.created_at ? new Date(sample.created_at).getTime() : Date.now(),
+            timestamp: Date.now(),
             storage_path: filePath,
             type: 'upload'
           };
@@ -189,12 +174,14 @@ export function VoiceSetup() {
   };
 
   useEffect(() => {
-    const initializeVoices = async () => {
-      await fetchVoices();
-      await fetchUserVoice();
+    const initializeVoiceSettings = async () => {
+      if (user?.id) {
+        await fetchVoices();
+        await fetchUserVoice(); // This will now set the correct section
+      }
     };
 
-    initializeVoices();
+    initializeVoiceSettings();
 
     // Close dropdowns when clicking outside
     const handleClickOutside = (event: MouseEvent) => {
@@ -208,37 +195,38 @@ export function VoiceSetup() {
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [user]);
+  }, [user?.id]); // Only re-run when user ID changes
 
   const fetchVoices = async () => {
     try {
+      console.log('Fetching voices...');
       const response = await fetch('http://localhost:8000/voices/');
       const data = await response.json();
       
-      // Get premade voices
-      const premadeVoices = data.filter((voice: Voice) => voice.category === 'premade');
+      // Get premade voices (ensure unique)
+      const premadeVoices = Array.from(
+        new Map(
+          data
+            .filter((voice: Voice) => voice.category === 'premade')
+            .map((voice: Voice) => [voice.voice_id, voice])
+        ).values()
+      ) as Voice[];
       
-      // Get only the latest custom voice for each name that has a preview URL
-      const customVoices = data
-        .filter((voice: Voice) => 
-          voice.category === 'cloned' && 
-          voice.name !== 'test-voice' &&
-          voice.preview_url // Only include voices with preview URLs
-        )
-        .reduce((acc: Voice[], voice: Voice) => {
-          // Find existing voice with same name
-          const existingVoice = acc.find(v => v.name === voice.name);
-          
-          // If no existing voice or this one is newer (based on voice_id), use this one
-          if (!existingVoice || voice.voice_id > existingVoice.voice_id) {
-            // Remove existing voice if any
-            const filtered = acc.filter(v => v.name !== voice.name);
-            return [...filtered, voice];
-          }
-          return acc;
-        }, []);
-
-      setVoices([...premadeVoices, ...customVoices]);
+      // Get custom voices (ensure unique)
+      const customVoices = Array.from(
+        new Map(
+          data
+            .filter((voice: Voice) => 
+              voice.category === 'cloned' && 
+              voice.name !== 'test-voice' &&
+              voice.preview_url
+            )
+            .map((voice: Voice) => [voice.voice_id, voice])
+        ).values()
+      ) as Voice[];
+      
+      const allVoices = [...premadeVoices, ...customVoices];
+      setVoices(allVoices);
       return data;
     } catch (error) {
       console.error('Error fetching voices:', error);
@@ -250,17 +238,43 @@ export function VoiceSetup() {
     if (!user?.id) return;
     
     try {
-      const { data, error } = await supabase
+      const { data: activeVoice, error } = await supabase
         .from('voice_preferences')
-        .select('voice_id, is_custom_voice')
+        .select('*')
         .eq('user_id', user.id)
-        .single();
+        .eq('is_active', true)
+        .maybeSingle();
 
       if (error) throw error;
-      if (data) {
-        setSelectedVoice(data.voice_id);
-        setIsCustomVoice(data.is_custom_voice || false);
-        setActiveSection(data.is_custom_voice ? 'custom' : 'default');
+
+      if (activeVoice) {
+        if (activeVoice.is_custom) {
+          setSelectedCustomVoice(activeVoice.voice_id);
+          setSelectedDefaultVoice('');
+          setIsCustomVoice(true);
+          setActiveSection('custom');
+          localStorage.setItem('voiceSection', 'custom');
+        } else {
+          setSelectedDefaultVoice(activeVoice.voice_id);
+          setSelectedCustomVoice('');
+          setIsCustomVoice(false);
+          setActiveSection('default');
+          localStorage.setItem('voiceSection', 'default');
+        }
+      } else {
+        // If no active voice, check localStorage
+        const savedSection = localStorage.getItem('voiceSection') as 'default' | 'custom' | null;
+        if (savedSection) {
+          setActiveSection(savedSection);
+          setIsCustomVoice(savedSection === 'custom');
+        } else {
+          // Default to 'default' section if nothing is saved
+          setSelectedCustomVoice('');
+          setSelectedDefaultVoice('');
+          setIsCustomVoice(false);
+          setActiveSection('default');
+          localStorage.setItem('voiceSection', 'default');
+        }
       }
     } catch (error) {
       console.error('Error fetching user voice:', error);
@@ -270,19 +284,57 @@ export function VoiceSetup() {
   const handleVoiceSelect = async (voiceId: string) => {
     try {
       setLoading(true);
-      setSelectedVoice(voiceId);
+      setSelectedDefaultVoice(voiceId);
       setIsOpen(false);
 
-      const { error } = await supabase
-        .from('voice_preferences')
-        .upsert({ 
-          user_id: user?.id,
-          voice_id: voiceId,
-          auto_play: false,
-          is_custom_voice: false // Set to false when selecting a default voice
-        });
+      // Find the selected voice to get its name
+      const selectedVoice = voices.find(v => v.voice_id === voiceId);
+      if (!selectedVoice) throw new Error('Voice not found');
 
-      if (error) throw error;
+      // First deactivate all existing voice preferences
+      await supabase
+        .from('voice_preferences')
+        .update({ is_active: false })
+        .eq('user_id', user?.id);
+
+      // Then check if preference exists
+      const { data: existingPref } = await supabase
+        .from('voice_preferences')
+        .select('id')
+        .eq('user_id', user?.id)
+        .eq('voice_id', voiceId)
+        .maybeSingle();
+
+      if (existingPref) {
+        // Update existing preference
+        const { error } = await supabase
+          .from('voice_preferences')
+          .update({ 
+            is_active: true,
+            voice_name: selectedVoice.name,
+            preview_text: `This is the ${selectedVoice.name} voice.`,
+            preview_url: selectedVoice.preview_url || '',
+            is_custom: false
+          })
+          .eq('id', existingPref.id);
+
+        if (error) throw error;
+      } else {
+        // Insert new preference
+        const { error } = await supabase
+          .from('voice_preferences')
+          .insert({ 
+            user_id: user?.id,
+            voice_id: voiceId,
+            voice_name: selectedVoice.name,
+            preview_text: `This is the ${selectedVoice.name} voice.`,
+            preview_url: selectedVoice.preview_url || '',
+            is_custom: false,
+            is_active: true
+          });
+
+        if (error) throw error;
+      }
       setIsCustomVoice(false);
     } catch (error) {
       console.error('Error updating default voice:', error);
@@ -291,10 +343,67 @@ export function VoiceSetup() {
     }
   };
 
+  const handleCustomVoiceSelect = async (voiceId: string) => {
+    try {
+      setLoading(true);
+      setSelectedCustomVoice(voiceId);
+      setIsRecordingsOpen(false);
+
+      const selectedVoice = voices.find(v => v.voice_id === voiceId);
+      if (!selectedVoice) throw new Error('Voice not found');
+
+      // First deactivate all existing voice preferences
+      await supabase
+        .from('voice_preferences')
+        .update({ is_active: false })
+        .eq('user_id', user?.id);
+
+      // Update or insert preference
+      const { data: existingPref } = await supabase
+        .from('voice_preferences')
+        .select('id')
+        .eq('user_id', user?.id)
+        .eq('voice_id', voiceId)
+        .maybeSingle();
+
+      if (existingPref) {
+        const { error } = await supabase
+          .from('voice_preferences')
+          .update({ is_active: true })
+          .eq('id', existingPref.id);
+
+        if (error) throw error;
+      }
+      setIsCustomVoice(true);
+    } catch (error) {
+      console.error('Error updating custom voice:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Add utility function to verify URL is accessible
+  const verifyUrl = async (url: string): Promise<boolean> => {
+    try {
+      const response = await fetch(url, { method: 'HEAD' });
+      return response.ok;
+    } catch (error) {
+      console.warn('URL not accessible:', error);
+      return false;
+    }
+  };
+
   const playPreview = async (voice: Voice) => {
     if (!voice.preview_url) return;
     
     try {
+      // Verify URL is accessible before attempting to play
+      const isValid = await verifyUrl(voice.preview_url);
+      if (!isValid) {
+        console.warn(`Preview URL not accessible for voice ${voice.voice_id}`);
+        return;
+      }
+
       // Stop current audio if playing
       if (currentAudio) {
         currentAudio.pause();
@@ -321,66 +430,85 @@ export function VoiceSetup() {
   };
 
   const getSelectedVoiceName = () => {
-    const voice = voices.find(v => v.voice_id === selectedVoice);
-    return voice ? voice.name : 'Select a voice';
+    const voiceId = activeSection === 'default' ? selectedDefaultVoice : selectedCustomVoice;
+    const voice = voices.find(v => v.voice_id === voiceId);
+    return voice ? voice.name : activeSection === 'default' ? 'Select a voice' : 'No trained voice';
   };
 
-  const trainVoice = async () => {
-    if (!selectedRecording) return;
-
+  const trainAndSetVoice = async (recording: Recording) => {
+    if (!user?.id) return;
+    
     try {
-      setLoading(true);
+      setIsTraining(true);
+      const previewText = `Hi, I'm ${user.user_metadata?.full_name || 'your AI assistant'}. This is my AI voice.`;
+      
       const formData = new FormData();
-      formData.append('file', selectedRecording.blob, 'recording.mp3');
-      formData.append('name', `${user?.user_metadata?.full_name || 'Custom'}'s Voice`);
-      formData.append('description', 'Personal voice clone created for AI avatar');
-      
-      if (!user?.id) {
-        throw new Error('User ID is required');
-      }
+      formData.append('file', recording.blob, 'voice.mp3');
+      formData.append('name', `${user.user_metadata?.full_name || 'Custom'}'s Voice`);
+      formData.append('preview_text', previewText);
       formData.append('user_id', user.id);
-
-      const response = await fetch(`http://localhost:8000/voices/train`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const responseData = await response.json();
-        console.error('Voice training error:', responseData);
-        throw new Error(responseData.detail || 'Failed to train voice');
-      }
-
-      // Get the voice data from the response
-      const voiceData = await response.json();
       
-      // Store voice information in the database
-      const { error: dbError } = await supabase
-        .from('voice_preferences')
-        .upsert({
-          user_id: user.id,
-          voice_id: voiceData.voice_id,
-          voice_name: voiceData.name,
-          voice_url: voiceData.voice_url,
-          preview_url: voiceData.preview_url,
-          is_custom_voice: true,
-          category: 'cloned',
-          auto_play: false
+      console.log('Training voice with:', {
+        name: `${user.user_metadata?.full_name || 'Custom'}'s Voice`,
+        preview_text: previewText,
+        user_id: user.id,
+        file_size: recording.blob.size,
+        file_type: recording.blob.type
+      });
+      
+      const response = await fetch('http://localhost:8000/voices/train', {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('Training error response:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
         });
-
-      if (dbError) throw dbError;
-
-      // Wait a moment for the voice to be processed before fetching the updated list
-      setTimeout(async () => {
+        throw new Error(`Failed to train voice: ${errorData}`);
+      }
+      
+      const data = await response.json();
+      console.log('Training response:', data);
+      
+      if (data.voice_preference) {
+        setSelectedCustomVoice(data.voice_id);
+        setSelectedDefaultVoice('');
         await fetchVoices();
-        alert('Voice training completed successfully!');
-      }, 2000);
-
+        localStorage.setItem('voiceSection', 'custom');
+      }
+      
     } catch (error) {
       console.error('Error training voice:', error);
+      alert(error instanceof Error ? error.message : 'Failed to train voice. Please try again.');
+    } finally {
+      setIsTraining(false);
+      setCurrentRecording(null);
+    }
+  };
+
+  const handleTrainVoice = async () => {
+    if (!currentRecording) return;
+    
+    try {
+      setIsTraining(true);
+      setActiveSection('custom');
+      setIsCustomVoice(true);
+      
+      await trainAndSetVoice(currentRecording);
+      
+      // After successful training, update UI
+      setCurrentRecording(null);
+      setIsRecordingsOpen(false);
+      
+    } catch (error) {
+      console.error('Error in handleTrainVoice:', error);
       alert('Failed to train voice. Please try again.');
     } finally {
-      setLoading(false);
+      setIsTraining(false);
     }
   };
 
@@ -414,16 +542,8 @@ export function VoiceSetup() {
         type: 'upload'  // Mark as upload
       };
       
-      // Save to storage and update state
-      const storagePath = await saveRecordingToStorage(newRecording);
-      if (storagePath) {
-        const recordingWithPath = { ...newRecording, storage_path: storagePath };
-        setRecordings(prev => {
-          const updated = [recordingWithPath, ...prev].slice(0, 5);
-          setSelectedRecording(recordingWithPath);
-          return updated;
-        });
-      }
+      // Set as current recording instead of saving to storage immediately
+      setCurrentRecording(newRecording);
     } catch (error) {
       console.error('Error uploading file:', error);
     } finally {
@@ -435,27 +555,17 @@ export function VoiceSetup() {
 
   useEffect(() => {
     if (audioBlob) {
+      const timestamp = Date.now();
       const newRecording: Recording = {
-        id: Date.now().toString(),
+        id: timestamp.toString(),
         blob: audioBlob,
         duration: recordingTime,
-        timestamp: Date.now(),
-        type: 'recording'  // Mark as recording
+        timestamp,
+        type: 'recording'
       };
-      
-      // Save to storage and update state
-      saveRecordingToStorage(newRecording).then(storagePath => {
-        if (storagePath) {
-          const recordingWithPath = { ...newRecording, storage_path: storagePath };
-          setRecordings(prev => {
-            const updated = [recordingWithPath, ...prev].slice(0, 5);
-            setSelectedRecording(recordingWithPath);
-            return updated;
-          });
-        }
-      });
+      setCurrentRecording(newRecording);
     }
-  }, [audioBlob, recordingTime]);
+  }, [audioBlob]);
 
   const handleStopRecording = async () => {
     await stopRecordingHook();
@@ -495,12 +605,12 @@ export function VoiceSetup() {
       }
 
       // Also clean up any voice preferences that might be using this recording
-      if (isCustomVoice && selectedVoice === id) {
+      if (isCustomVoice && selectedCustomVoice === id) {
         const { error: prefError } = await supabase
           .from('voice_preferences')
           .update({ 
             voice_id: null,
-            is_custom_voice: false 
+            is_custom: false 
           })
           .eq('user_id', user?.id);
 
@@ -541,35 +651,39 @@ export function VoiceSetup() {
     }
   };
 
-  // Modify handleSectionToggle to update voice preference
+  // Modify handleSectionToggle to use new schema
   const handleSectionToggle = async (section: 'default' | 'custom') => {
-    // If clicking the already active section, don't do anything
     if (activeSection === section) return;
     
     try {
       setLoading(true);
-      
-      // Update the active section
       setActiveSection(section);
+      localStorage.setItem('voiceSection', section);
       
-      // Update voice preference in database
-      const { error } = await supabase
+      // First deactivate all existing voice preferences
+      await supabase
         .from('voice_preferences')
-        .upsert({ 
-          user_id: user?.id,
-          voice_id: section === 'custom' ? selectedRecording?.id : selectedVoice,
-          auto_play: false,
-          is_custom_voice: section === 'custom'
-        });
-
-      if (error) throw error;
+        .update({ is_active: false })
+        .eq('user_id', user?.id);
       
-      // Update local state
+      if (section === 'default' && selectedDefaultVoice) {
+        // Reactivate the selected default voice
+        const voice = voices.find(v => v.voice_id === selectedDefaultVoice);
+        if (voice) {
+          await handleVoiceSelect(selectedDefaultVoice);
+        }
+      } else if (section === 'custom' && selectedCustomVoice) {
+        // Reactivate the selected custom voice
+        const voice = voices.find(v => v.voice_id === selectedCustomVoice);
+        if (voice) {
+          await handleCustomVoiceSelect(selectedCustomVoice);
+        }
+      }
+      
       setIsCustomVoice(section === 'custom');
       
     } catch (error) {
       console.error('Error updating voice preference:', error);
-      // Revert the UI if there was an error
       setActiveSection(activeSection);
       setIsCustomVoice(activeSection === 'custom');
     } finally {
@@ -585,7 +699,48 @@ export function VoiceSetup() {
     if (customContentRef.current) {
       setCustomContentHeight(customContentRef.current.scrollHeight);
     }
-  }, [voices, recordings, selectedVoice, selectedRecording]);
+  }, [voices, recordings, selectedDefaultVoice, selectedCustomVoice]);
+
+  // Add new function to delete trained voice
+  const deleteTrainedVoice = async (voiceId: string) => {
+    try {
+      setLoading(true);
+      
+      // Delete from voice_preferences
+      const { error: prefError } = await supabase
+        .from('voice_preferences')
+        .delete()
+        .eq('voice_id', voiceId)
+        .eq('user_id', user?.id);
+
+      if (prefError) throw prefError;
+
+      // Delete from voices API
+      const response = await fetch(`http://localhost:8000/voices/${voiceId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete voice from API');
+      }
+
+      // Update local state
+      setVoices(prev => prev.filter(v => v.voice_id !== voiceId));
+      if (selectedCustomVoice === voiceId) {
+        setSelectedCustomVoice('');
+      }
+      if (selectedDefaultVoice === voiceId) {
+        setSelectedDefaultVoice('');
+      }
+
+      await fetchVoices(); // Refresh the list
+    } catch (error) {
+      console.error('Error deleting trained voice:', error);
+      alert('Failed to delete voice. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="mt-8 p-6 border border-gray-200 rounded-lg bg-white shadow-sm">
@@ -651,7 +806,7 @@ export function VoiceSetup() {
                           key={voice.voice_id}
                           className={`
                             flex items-center justify-between px-3 py-2 cursor-pointer
-                            ${selectedVoice === voice.voice_id ? 'bg-blue-100' : 'hover:bg-gray-100'}
+                            ${selectedDefaultVoice === voice.voice_id ? 'bg-blue-100' : 'hover:bg-gray-100'}
                           `}
                         >
                           <div
@@ -778,26 +933,81 @@ export function VoiceSetup() {
                       />
                     </label>
 
-                    {selectedRecording && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleTrainVoice();
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-md hover:bg-gray-800 disabled:opacity-50"
+                      disabled={!currentRecording || loading || isTraining}
+                    >
+                      {isTraining ? (
+                        <>
+                          <span>Training...</span>
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        </>
+                      ) : (
+                        <>
+                          <span>Train Voice</span>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13a1 1 0 102 0V9.414l1.293 1.293a1 1 0 001.414-1.414z" clipRule="evenodd" />
+                          </svg>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {currentRecording && (
+                    <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-md w-fit">
                       <button
-                        type="button"
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          trainVoice();
+                          if (isPlaying) {
+                            currentAudio?.pause();
+                            setIsPlaying(false);
+                          } else {
+                            playRecording(currentRecording);
+                            setIsPlaying(true);
+                          }
                         }}
-                        className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-md hover:bg-gray-800 disabled:opacity-50"
-                        disabled={loading}
+                        className="text-gray-600 hover:text-blue-600"
                       >
-                        <span>Train Voice</span>
+                        {isPlaying ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </button>
+                      <span className="text-sm text-gray-600">
+                        Current Recording ({formatTime(currentRecording.duration)})
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (isPlaying) {
+                            currentAudio?.pause();
+                            setIsPlaying(false);
+                          }
+                          setCurrentRecording(null);
+                        }}
+                        className="text-gray-400 hover:text-red-600 ml-2"
+                      >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13a1 1 0 102 0V9.414l1.293 1.293a1 1 0 001.414-1.414z" clipRule="evenodd" />
+                          <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 112 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" />
                         </svg>
                       </button>
-                    )}
-                  </div>
+                    </div>
+                  )}
 
-                  {/* Recordings Dropdown */}
+                  {/* Trained Voices Dropdown */}
                   <div className="relative" ref={recordingsDropdownRef}>
                     <button
                       type="button"
@@ -810,9 +1020,7 @@ export function VoiceSetup() {
                       disabled={loading}
                     >
                       <span className="block truncate">
-                        {selectedRecording 
-                          ? `${selectedRecording.type === 'upload' ? 'File' : 'Recording'} from ${formatTimestamp(selectedRecording.timestamp)} (${formatTime(selectedRecording.duration)})`
-                          : 'Select a recording'}
+                        {selectedCustomVoice ? getSelectedVoiceName() : 'Select a trained voice'}
                       </span>
                       <span className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
                         <svg className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
@@ -823,69 +1031,81 @@ export function VoiceSetup() {
 
                     {isRecordingsOpen && (
                       <div className="absolute z-[100] mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none">
-                        {recordings.length === 0 ? (
+                        {voices.filter(voice => 
+                          voice.category === 'cloned' && 
+                          voice.preview_url && 
+                          voice.is_custom // Only show custom voices
+                        ).length === 0 ? (
                           <div className="px-3 py-2 text-gray-500 text-sm">
-                            No recordings yet
+                            No trained voices yet
                           </div>
                         ) : (
-                          recordings.map((recording) => (
-                            <div
-                              key={recording.id}
-                              className={`
-                                flex items-center justify-between px-3 py-2 cursor-pointer
-                                ${selectedRecording?.id === recording.id ? 'bg-blue-100' : 'hover:bg-gray-100'}
-                              `}
-                            >
+                          voices
+                            .filter(voice => 
+                              voice.category === 'cloned' && 
+                              voice.preview_url && 
+                              voice.is_custom // Only show custom voices
+                            )
+                            .map((voice) => (
                               <div
-                                className="flex-1"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  setSelectedRecording(recording);
-                                  setIsRecordingsOpen(false);
-                                }}
+                                key={voice.voice_id}
+                                className={`
+                                  flex items-center justify-between px-3 py-2 cursor-pointer
+                                  ${selectedCustomVoice === voice.voice_id ? 'bg-blue-100' : 'hover:bg-gray-100'}
+                                `}
                               >
-                                <div className="flex items-center justify-between">
-                                  <span>{recording.type === 'upload' ? 'File' : 'Recording'} from {formatTimestamp(recording.timestamp)}</span>
-                                  <span className="text-sm text-gray-500 ml-2">
-                                    ({formatTime(recording.duration)})
-                                  </span>
+                                <div className="flex flex-col flex-1">
+                                  <div
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleCustomVoiceSelect(voice.voice_id);
+                                    }}
+                                  >
+                                    {voice.name}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    Click play to hear preview
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      playPreview(voice);
+                                    }}
+                                    className="p-1 text-gray-400 hover:text-blue-600"
+                                  >
+                                    {playingPreview === voice.voice_id ? (
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                                      </svg>
+                                    ) : (
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                                      </svg>
+                                    )}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      if (confirm('Are you sure you want to delete this voice?')) {
+                                        deleteTrainedVoice(voice.voice_id);
+                                      }
+                                    }}
+                                    className="p-1 text-gray-400 hover:text-red-600"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                      <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 112 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" />
+                                    </svg>
+                                  </button>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    playRecording(recording);
-                                  }}
-                                  className="p-1 text-gray-400 hover:text-blue-600"
-                                >
-                                  {playingRecordingId === recording.id ? (
-                                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"/>
-                                  ) : (
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                                    </svg>
-                                  )}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    deleteRecording(recording.id);
-                                  }}
-                                  className="p-1 text-gray-400 hover:text-red-600"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 112 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" />
-                                  </svg>
-                                </button>
-                              </div>
-                            </div>
-                          ))
+                            ))
                         )}
                       </div>
                     )}

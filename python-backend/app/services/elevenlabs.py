@@ -191,4 +191,21 @@ class ElevenLabsService:
             
         except Exception as e:
             logger.error(f"Error editing voice settings: {str(e)}")
+            raise
+
+    async def generate_preview_sample(self, voice_id: str, text: str) -> bytes:
+        """
+        Generate a preview sample for a voice using the provided text
+        """
+        try:
+            logger.info(f"Generating preview sample for voice {voice_id}")
+            preview_audio = await self.generate_speech(
+                text=text,
+                voice_id=voice_id,
+                model_id="eleven_monolingual_v1",
+                optimize_streaming_latency=0
+            )
+            return preview_audio
+        except Exception as e:
+            logger.error(f"Error generating preview sample: {str(e)}")
             raise 
