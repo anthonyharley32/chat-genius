@@ -7,6 +7,14 @@ interface Voice {
   voice_id: string;
   name: string;
   preview_url?: string;
+  category: 'premade' | 'cloned';
+}
+
+interface Recording {
+  id: string;
+  blob: Blob;
+  duration: number;
+  timestamp: number;
 }
 
 export function VoiceSetup() {
@@ -15,7 +23,11 @@ export function VoiceSetup() {
   const [selectedVoice, setSelectedVoice] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [playingPreview, setPlayingPreview] = useState<string | null>(null);
+  const [recordings, setRecordings] = useState<Recording[]>([]);
+  const [isRecordingsOpen, setIsRecordingsOpen] = useState(false);
+  const [selectedRecording, setSelectedRecording] = useState<Recording | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const recordingsDropdownRef = useRef<HTMLDivElement>(null);
   const { user } = useUser();
   const supabase = createClient();
   const {
@@ -23,45 +35,107 @@ export function VoiceSetup() {
     audioBlob,
     error,
     startRecording,
-    stopRecording,
+    stopRecording: stopRecordingHook,
   } = useVoiceRecorder();
+  const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [playingRecordingId, setPlayingRecordingId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchVoices();
-    fetchUserVoice();
+    let interval: NodeJS.Timeout;
+    
+    if (isRecording) {
+      interval = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+    } else {
+      setRecordingTime(0);
+    }
 
-    // Close dropdown when clicking outside
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [isRecording]);
+
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  useEffect(() => {
+    const initializeVoices = async () => {
+      await fetchVoices();
+      await fetchUserVoice();
+    };
+
+    initializeVoices();
+
+    // Close dropdowns when clicking outside
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
+      }
+      if (recordingsDropdownRef.current && !recordingsDropdownRef.current.contains(event.target as Node)) {
+        setIsRecordingsOpen(false);
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [user]);
 
   const fetchVoices = async () => {
     try {
       const response = await fetch('http://localhost:8000/voices/');
       const data = await response.json();
-      setVoices(data);
+      
+      // Get premade voices
+      const premadeVoices = data.filter((voice: Voice) => voice.category === 'premade');
+      
+      // Get only the latest custom voice for each name that has a preview URL
+      const customVoices = data
+        .filter((voice: Voice) => 
+          voice.category === 'cloned' && 
+          voice.name !== 'test-voice' &&
+          voice.preview_url // Only include voices with preview URLs
+        )
+        .reduce((acc: Voice[], voice: Voice) => {
+          // Find existing voice with same name
+          const existingVoice = acc.find(v => v.name === voice.name);
+          
+          // If no existing voice or this one is newer (based on voice_id), use this one
+          if (!existingVoice || voice.voice_id > existingVoice.voice_id) {
+            // Remove existing voice if any
+            const filtered = acc.filter(v => v.name !== voice.name);
+            return [...filtered, voice];
+          }
+          return acc;
+        }, []);
+
+      setVoices([...premadeVoices, ...customVoices]);
+      return data;
     } catch (error) {
       console.error('Error fetching voices:', error);
+      return [];
     }
   };
 
   const fetchUserVoice = async () => {
+    if (!user?.id) return;
+    
     try {
       const { data, error } = await supabase
-        .from('users')
-        .select('default_voice_id')
-        .eq('id', user?.id)
+        .from('voice_preferences')
+        .select('voice_id')
+        .eq('user_id', user.id)
         .single();
 
       if (error) throw error;
-      if (data?.default_voice_id) {
-        setSelectedVoice(data.default_voice_id);
+      if (data?.voice_id) {
+        setSelectedVoice(data.voice_id);
       }
     } catch (error) {
       console.error('Error fetching user voice:', error);
@@ -75,9 +149,12 @@ export function VoiceSetup() {
       setIsOpen(false);
 
       const { error } = await supabase
-        .from('users')
-        .update({ default_voice_id: voiceId })
-        .eq('id', user?.id);
+        .from('voice_preferences')
+        .upsert({ 
+          user_id: user?.id,
+          voice_id: voiceId,
+          auto_play: false
+        });
 
       if (error) throw error;
     } catch (error) {
@@ -91,13 +168,28 @@ export function VoiceSetup() {
     if (!voice.preview_url) return;
     
     try {
-      setPlayingPreview(voice.voice_id);
+      // Stop current audio if playing
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+        setPlayingPreview(null);
+      }
+
+      // Create and play new audio
       const audio = new Audio(voice.preview_url);
-      audio.onended = () => setPlayingPreview(null);
+      setCurrentAudio(audio);
+      setPlayingPreview(voice.voice_id);
+      
+      audio.onended = () => {
+        setPlayingPreview(null);
+        setCurrentAudio(null);
+      };
+      
       await audio.play();
     } catch (error) {
       console.error('Error playing preview:', error);
       setPlayingPreview(null);
+      setCurrentAudio(null);
     }
   };
 
@@ -107,32 +199,118 @@ export function VoiceSetup() {
   };
 
   const trainVoice = async () => {
-    if (!audioBlob) return;
+    if (!selectedRecording) return;
 
     try {
       setLoading(true);
       const formData = new FormData();
-      formData.append('audio', audioBlob, 'recording.mp3');
-      formData.append('name', 'My Custom Voice');
-      formData.append('description', 'Custom voice created from my recordings');
+      formData.append('file', selectedRecording.blob, 'recording.mp3');
+      formData.append('name', `${user?.user_metadata?.full_name || 'Custom'}'s Voice`);
+      formData.append('description', 'Personal voice clone created for AI avatar');
+      
+      if (!user?.id) {
+        throw new Error('User ID is required');
+      }
+      formData.append('user_id', user.id);
 
-      const response = await fetch(`http://localhost:8000/voices/train?user_id=${user?.id}`, {
+      // Log the request details for debugging
+      console.log('Training voice with:', {
+        name: `${user?.user_metadata?.full_name || 'Custom'}'s Voice`,
+        description: 'Personal voice clone created for AI avatar',
+        user_id: user.id,
+        file_size: selectedRecording.blob.size,
+        file_type: selectedRecording.blob.type,
+        duration: selectedRecording.duration
+      });
+
+      const response = await fetch(`http://localhost:8000/voices/train`, {
         method: 'POST',
         body: formData,
       });
 
-      if (!response.ok) throw new Error('Failed to train voice');
+      if (!response.ok) {
+        const responseData = await response.json();
+        console.error('Voice training error:', responseData);
+        throw new Error(responseData.detail || 'Failed to train voice');
+      }
 
-      await fetchVoices();
+      // Wait a moment for the voice to be processed before fetching the updated list
+      setTimeout(async () => {
+        await fetchVoices();
+        alert('Voice training completed successfully!');
+      }, 2000);
+
     } catch (error) {
       console.error('Error training voice:', error);
+      alert('Failed to train voice. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    if (audioBlob) {
+      // Create new recording entry when audioBlob is available
+      const newRecording: Recording = {
+        id: Date.now().toString(),
+        blob: audioBlob,
+        duration: recordingTime,
+        timestamp: Date.now()
+      };
+      
+      // Add to recordings list, maintaining max of 5
+      setRecordings(prev => {
+        const updated = [newRecording, ...prev].slice(0, 5);
+        setSelectedRecording(newRecording);
+        return updated;
+      });
+    }
+  }, [audioBlob, recordingTime]);
+
+  const handleStopRecording = async () => {
+    await stopRecordingHook();
+  };
+
+  const formatTimestamp = (timestamp: number) => {
+    return new Date(timestamp).toLocaleString();
+  };
+
+  const deleteRecording = (id: string) => {
+    setRecordings(prev => prev.filter(rec => rec.id !== id));
+    if (selectedRecording?.id === id) {
+      setSelectedRecording(null);
+    }
+  };
+
+  const playRecording = async (recording: Recording) => {
+    try {
+      // Stop current audio if playing
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+        setPlayingRecordingId(null);
+      }
+
+      // Create and play new audio
+      const audio = new Audio(URL.createObjectURL(recording.blob));
+      setCurrentAudio(audio);
+      setPlayingRecordingId(recording.id);
+      
+      audio.onended = () => {
+        setPlayingRecordingId(null);
+        setCurrentAudio(null);
+      };
+      
+      await audio.play();
+    } catch (error) {
+      console.error('Error playing recording:', error);
+      setPlayingRecordingId(null);
+      setCurrentAudio(null);
+    }
+  };
+
   return (
-    <div className="mt-8">
+    <div className="mt-8 p-6 border border-gray-200 rounded-lg bg-white shadow-sm">
       <h2 className="text-xl font-semibold mb-4">Voice Settings</h2>
       
       <div className="space-y-4">
@@ -220,12 +398,15 @@ export function VoiceSetup() {
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  isRecording ? stopRecording() : startRecording();
+                  if (!isRecording) {
+                    alert('Please record at least 1 minute of clear speech for better voice cloning results. Optimal length is 3-10 minutes.');
+                  }
+                  isRecording ? handleStopRecording() : startRecording();
                 }}
                 className={`flex items-center gap-2 px-4 py-2 rounded-md ${
                   isRecording 
                     ? 'bg-red-600 hover:bg-red-500' 
-                    : 'bg-blue-600 hover:bg-blue-500'
+                    : 'bg-red-600 hover:bg-red-500'
                 } text-white`}
                 disabled={loading}
               >
@@ -233,6 +414,7 @@ export function VoiceSetup() {
                   <>
                     <span>Stop Recording</span>
                     <span className="w-2 h-2 rounded-full bg-red-300 animate-pulse"/>
+                    <span className="ml-2 text-sm">{formatTime(recordingTime)}</span>
                   </>
                 ) : (
                   <>
@@ -244,7 +426,7 @@ export function VoiceSetup() {
                 )}
               </button>
 
-              {audioBlob && (
+              {selectedRecording && (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -252,11 +434,108 @@ export function VoiceSetup() {
                     e.stopPropagation();
                     trainVoice();
                   }}
-                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-500 disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-md hover:bg-gray-800 disabled:opacity-50"
                   disabled={loading}
                 >
-                  Train Voice
+                  <span>Train Voice</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13a1 1 0 102 0V9.414l1.293 1.293a1 1 0 001.414-1.414z" clipRule="evenodd" />
+                  </svg>
                 </button>
+              )}
+            </div>
+
+            {/* Recordings Dropdown */}
+            <div className="relative" ref={recordingsDropdownRef}>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsRecordingsOpen(!isRecordingsOpen);
+                }}
+                className="relative w-full bg-white border border-gray-300 rounded-md pl-3 pr-10 py-2 text-left cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                disabled={loading}
+              >
+                <span className="block truncate">
+                  {selectedRecording 
+                    ? `Recording from ${formatTimestamp(selectedRecording.timestamp)} (${formatTime(selectedRecording.duration)})`
+                    : 'Select a recording'}
+                </span>
+                <span className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                  <svg className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </span>
+              </button>
+
+              {isRecordingsOpen && (
+                <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none">
+                  {recordings.length === 0 ? (
+                    <div className="px-3 py-2 text-gray-500 text-sm">
+                      No recordings yet
+                    </div>
+                  ) : (
+                    recordings.map((recording) => (
+                      <div
+                        key={recording.id}
+                        className={`
+                          flex items-center justify-between px-3 py-2 cursor-pointer
+                          ${selectedRecording?.id === recording.id ? 'bg-blue-100' : 'hover:bg-gray-100'}
+                        `}
+                      >
+                        <div
+                          className="flex-1"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setSelectedRecording(recording);
+                            setIsRecordingsOpen(false);
+                          }}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span>Recording from {formatTimestamp(recording.timestamp)}</span>
+                            <span className="text-sm text-gray-500 ml-2">
+                              ({formatTime(recording.duration)})
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              playRecording(recording);
+                            }}
+                            className="p-1 text-gray-400 hover:text-blue-600"
+                          >
+                            {playingRecordingId === recording.id ? (
+                              <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"/>
+                            ) : (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              deleteRecording(recording.id);
+                            }}
+                            className="p-1 text-gray-400 hover:text-red-600"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 112 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               )}
             </div>
 
@@ -264,12 +543,6 @@ export function VoiceSetup() {
               <p className="text-sm text-red-600">
                 {error}
               </p>
-            )}
-
-            {audioBlob && (
-              <div className="mt-2">
-                <audio src={URL.createObjectURL(audioBlob)} controls className="w-full" />
-              </div>
             )}
           </div>
         </div>
