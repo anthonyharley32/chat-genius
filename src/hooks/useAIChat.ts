@@ -1,8 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useUser } from '@/hooks/useUser';
 import { AIMessage } from '@/types/ai-chat';
 import { useAIMemory } from './useAIMemory';
 import { CreateAIChatHistoryParams } from '@/types/ai-memory';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 interface AIResponse {
   response: string;
@@ -29,14 +34,38 @@ interface AIResponse {
   }[];
 }
 
+interface AIAvatarSettings {
+  name: string;
+  instructions?: string;
+}
+
 export function useAIChat(targetUserId: string) {
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const { user } = useUser();
   const { addMessage, avatarSettings } = useAIMemory(targetUserId);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [targetUserName, setTargetUserName] = useState<string>('AI Assistant');
+
+  useEffect(() => {
+    const fetchTargetUser = async () => {
+      if (!targetUserId) return;
+      
+      const { data, error } = await supabase
+        .from('users')
+        .select('full_name')
+        .eq('id', targetUserId)
+        .single();
+        
+      if (data?.full_name) {
+        setTargetUserName(data.full_name);
+      }
+    };
+    
+    fetchTargetUser();
+  }, [targetUserId]);
 
   const sendMessage = async (message: string): Promise<AIMessage> => {
-    if (!user?.id) {
+    if (!user) {
       throw new Error('User not authenticated');
     }
 
@@ -44,26 +73,36 @@ export function useAIChat(targetUserId: string) {
     setError(null);
 
     try {
-      // Store user message in history
+      console.log('Debug - Sending message with:', {
+        targetUserName,
+        avatarSettings,
+        message
+      });
+
       await addMessage({
         content: message,
         role: 'user'
       });
+
+      const requestBody = {
+        message,
+        avatar_name: targetUserName,
+        avatar_instructions: avatarSettings?.instructions || null
+      };
+
+      console.log('Debug - Request body:', requestBody);
 
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          message,
-          user_id: user.id,
-          avatar_instructions: avatarSettings?.instructions || null
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
+        console.error('Debug - API Error:', errorData);
         throw new Error(errorData.error || 'Failed to get AI response');
       }
 

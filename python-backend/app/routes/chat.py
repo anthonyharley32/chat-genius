@@ -15,7 +15,7 @@ chat_service = ChatService()
 
 class ChatRequest(BaseModel):
     message: str
-    user_id: str
+    avatar_name: str
     avatar_instructions: Optional[str] = None
 
 class UpsertMessageRequest(BaseModel):
@@ -38,13 +38,13 @@ async def chat(request: ChatRequest):
     try:
         logger.info("=== Chat Request Received ===")
         logger.info(f"Message: {request.message}")
-        logger.info(f"User ID: {request.user_id}")
+        logger.info(f"Avatar Name: {request.avatar_name}")
         if request.avatar_instructions:
             logger.info("Avatar instructions provided")
         
         response_data = await chat_service.generate_response(
             message=request.message,
-            user_id=request.user_id,
+            avatar_name=request.avatar_name,
             avatar_instructions=request.avatar_instructions
         )
         logger.info("Response generated successfully")

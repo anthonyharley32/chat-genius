@@ -7,6 +7,7 @@ import logging
 from supabase import create_client, Client # type: ignore
 import os
 import io
+import re
 
 # Initialize logging
 logger = logging.getLogger(__name__)
@@ -26,7 +27,7 @@ class TTSRequest(BaseModel):
     text: str
     voice_id: Optional[str] = None
     optimize_streaming_latency: int = 0
-    model_id: str = "eleven_monolingual_v1"
+    model_id: str = "eleven_flash_v2_5"
 
 # Reuse ElevenLabs service dependency
 async def get_elevenlabs_service():
@@ -35,6 +36,14 @@ async def get_elevenlabs_service():
         yield service
     finally:
         await service.close()
+
+def clean_text_for_synthesis(text: str) -> str:
+    """Remove citation references from text"""
+    # Remove [ref X] patterns
+    cleaned = re.sub(r'\[ref \d+\]', '', text)
+    # Remove extra whitespace
+    cleaned = ' '.join(cleaned.split())
+    return cleaned
 
 @router.post("/{voice_id}")
 async def text_to_speech(
@@ -50,6 +59,10 @@ async def text_to_speech(
         logger.info(f"Starting TTS request for voice_id: {voice_id}")
         logger.info(f"Text length: {len(request.text)} characters")
         
+        # Clean the text before synthesis
+        cleaned_text = clean_text_for_synthesis(request.text)
+        logger.info(f"Cleaned text length: {len(cleaned_text)} characters")
+        
         # Use the path parameter voice_id instead of from request
         if not voice_id:
             raise HTTPException(
@@ -57,9 +70,9 @@ async def text_to_speech(
                 detail="Voice ID is required"
             )
         
-        # Generate speech
+        # Generate speech with cleaned text
         audio_content = await service.generate_speech(
-            text=request.text,
+            text=cleaned_text,
             voice_id=voice_id,
             model_id=request.model_id,
             optimize_streaming_latency=request.optimize_streaming_latency

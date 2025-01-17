@@ -8,8 +8,8 @@ export async function POST(request: Request) {
     console.log('Making request to:', `${apiUrl}/api/chat`);
     console.log('With body:', body);
 
-    if (!body.user_id) {
-      throw new Error('user_id is required');
+    if (!body.avatar_name) {
+      throw new Error('avatar_name is required');
     }
 
     const response = await fetch(`${apiUrl}/api/chat`, {
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify({
         message: body.message,
-        user_id: body.user_id,
+        avatar_name: body.avatar_name,
         avatar_instructions: body.avatar_instructions || null
       }),
     });

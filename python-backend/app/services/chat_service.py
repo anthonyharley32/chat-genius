@@ -4,6 +4,7 @@ import os
 import logging
 from .pinecone_service import PineconeService
 from typing import List, Dict, Any
+from supabase import create_client, Client # type: ignore
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -20,6 +21,10 @@ class ChatService:
                 temperature=0.7
             )
             self.pinecone_service = PineconeService()
+            self.supabase = create_client(
+                os.getenv("NEXT_PUBLIC_SUPABASE_URL"),
+                os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+            )
         except Exception as e:
             logger.error("Error initializing ChatService")
             raise
@@ -57,8 +62,9 @@ class ChatService:
                 
         return "\n".join(context_parts)
 
-    async def generate_response(self, message: str, user_id: str, avatar_instructions: str = None) -> Dict[str, Any]:
+    async def generate_response(self, message: str, avatar_name: str, avatar_instructions: str = None) -> Dict[str, Any]:
         try:
+            logger.debug(f"Using avatar name: {avatar_name}")
             logger.debug("Searching for similar messages...")
             similar_messages = await self.pinecone_service.query_similar(message, top_k=5)
             
@@ -77,10 +83,10 @@ class ChatService:
                     # Format reference for LLM
                     if message_type == "channel":
                         channel_name = metadata.get("channel_name", "Unknown Channel")
-                        ref_text = f"Reference [{i}] (from #{channel_name}): {msg['content']}"
+                        ref_text = f"Reference [{i}] (from {user_name} in #{channel_name}): {msg['content']}"
                     else:
                         receiver_name = metadata.get("receiver_name", "Unknown User")
-                        ref_text = f"Reference [{i}] (from DM): {msg['content']}"
+                        ref_text = f"Reference [{i}] (from {user_name} in DM): {msg['content']}"
                     
                     filtered_messages.append(ref_text)
                     
@@ -107,22 +113,25 @@ class ChatService:
                         "referenceText": str(i)
                     })
             
-            # Create base system message
-            system_message = """You are a helpful AI assistant with access to previous messages as numbered references.
-You should actively use these references to support your responses. When you mention ANY information from the references,
-you MUST cite them using the {ref:N} format where N is the reference number.
+            # Create base system message with actual avatar name
+            system_message = f"""You are {avatar_name}, respond from their point of view.
+
+You have access to previous messages as numbered references. You should actively use these references to support your responses. 
+When you mention ANY information from the references, you MUST cite them using the {{ref:N}} format where N is the reference number.
 
 Guidelines for citations:
-1. Place the citation immediately after the information it supports
+1. Place the citation immediately after the information it supports with no space before it (e.g., "word{{ref:1}}" not "word {{ref:1}}")
 2. Be specific about what information you're citing
 3. Use multiple citations if you're combining information from different references
 4. If a reference contains relevant information, make sure to incorporate and cite it
 
 Example good citations:
-- "The project uses TypeScript for type safety {ref:1} and implements React hooks for state management {ref:2}"
-- "Based on the previous implementation {ref:1}, which had performance issues with large datasets {ref:2}, we should..."
+- "The project uses TypeScript for type safety{{ref:1}} and implements React hooks for state management{{ref:2}}"
+- "Based on the previous implementation{{ref:1}}, which had performance issues with large datasets{{ref:2}}, we should..."
 
-Do not explicitly say "Reference [N]" or "available references" in your final responses. Take ownership of the information you are citing. Instead, use phrases like "from what I could find..." or "based on the material I have..." when citing. If you cannot find specific information, respond deterministically (e.g., "From what I can find, that information is not specified.")."""
+Do not explicitly say "Reference [N]" or "available references" in your final responses. Take ownership of the information you are citing. 
+Instead, use phrases like "from what I could find..." or "based on the material I have..." when citing. If you cannot find specific information, 
+respond deterministically (e.g., "From what I can find, that information is not specified.")."""
 
             # Add references
             system_message += "\n\nAvailable references:\n" + "\n".join(filtered_messages)
