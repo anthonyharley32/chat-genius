@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowUp, Maximize2, Minimize2, X, Play } from 'lucide-react';
+import { ArrowUp, Maximize2, Minimize2, X, Play, Loader2, Square } from 'lucide-react';
 import { AIMessage } from '@/types/ai-chat';
 import { Citation, CitationReference } from '@/types/citations';
 import { useAIChat } from '@/hooks/useAIChat';
@@ -14,6 +14,7 @@ import { CitationComponent } from '@/components/ui/CitationComponent';
 import { useRouter } from 'next/navigation';
 import { useAIMemory } from '@/hooks/useAIMemory';
 import { AIChatHistory } from '@/types/ai-memory';
+import { createClient } from '@/utils/supabase/client';
 
 interface ChatModalProps {
   isOpen: boolean;
@@ -24,11 +25,6 @@ interface ChatModalProps {
 }
 
 function formatMessageWithCitations(content: string, references: CitationReference[], onCitationClick: (citationId: string) => void) {
-  // Add debug logging
-  console.log('Debug - Formatting message with citations:');
-  console.log('Content:', content);
-  console.log('References:', references);
-
   // Create a mapping of reference numbers to citation IDs
   const refToCitationMap = new Map(
     references.map(ref => [ref.referenceText, ref.citationId])
@@ -42,13 +38,8 @@ function formatMessageWithCitations(content: string, references: CitationReferen
     uniqueRefs.map((ref, index) => [ref, index + 1])
   );
   
-  console.log('Debug - Reference maps:');
-  console.log('refToCitationMap:', Object.fromEntries(refToCitationMap));
-  console.log('displayNumberMap:', Object.fromEntries(displayNumberMap));
-  
   // Split content at citation markers
   const parts = content.split(/(\{ref:\d+\})/);
-  console.log('Debug - Split parts:', parts);
   
   // Map the parts to React elements and wrap them in a parent div
   return (
@@ -60,13 +51,6 @@ function formatMessageWithCitations(content: string, references: CitationReferen
           const refNumber = match[1];
           const citationId = refToCitationMap.get(refNumber);
           const displayNumber = displayNumberMap.get(refNumber);
-          
-          console.log('Debug - Citation part:', {
-            part,
-            refNumber,
-            citationId,
-            displayNumber
-          });
           
           if (citationId && displayNumber) {
             return (
@@ -94,9 +78,7 @@ function formatMessageWithCitations(content: string, references: CitationReferen
 }
 
 function getUsedCitations(content: string, citations: Citation[], references: CitationReference[]) {
-  console.log('Debug - Content:', content);
-  console.log('Debug - Original Citations:', citations);
-  console.log('Debug - Original References:', references);
+
 
   // Find all citation markers in the content in order of appearance
   const markers = content.match(/\{ref:\d+\}/g) || [];
@@ -106,18 +88,14 @@ function getUsedCitations(content: string, citations: Citation[], references: Ci
       return match ? match[0] : null;
     })
     .filter((ref): ref is string => ref !== null);
-  
-  console.log('Debug - Citation markers in order:', markers);
-  console.log('Debug - Used reference numbers in order:', usedRefNumbers);
+
   
   // Create sequential display numbers while preserving original order
   const uniqueRefs = Array.from(new Set(usedRefNumbers));
   const displayNumberMap = new Map(
     uniqueRefs.map((ref, index) => [ref, (index + 1).toString()])
   );
-  
-  console.log('Debug - Display number mapping:', Object.fromEntries(displayNumberMap));
-  
+    
   // Track citation order based on first appearance in text
   const citationOrder = usedRefNumbers
     .map(refNum => {
@@ -127,7 +105,6 @@ function getUsedCitations(content: string, citations: Citation[], references: Ci
     })
     .filter((item): item is NonNullable<typeof item> => item !== null);
 
-  console.log('Debug - Citation order:', citationOrder);
 
   // Create new references maintaining the order
   const usedCitationIds = new Set<string>();
@@ -146,7 +123,6 @@ function getUsedCitations(content: string, citations: Citation[], references: Ci
     }
   });
 
-  console.log('Debug - New references:', newReferences);
   
   // Order citations based on their first appearance in the text
   const orderedCitations = citations
@@ -156,9 +132,7 @@ function getUsedCitations(content: string, citations: Citation[], references: Ci
       const bIndex = citationOrder.findIndex(c => c.citationId === b.id);
       return aIndex - bIndex;
     });
-  
-  console.log('Debug - Final ordered citations:', orderedCitations);
-  
+    
   return {
     citations: orderedCitations,
     references: newReferences
@@ -180,6 +154,11 @@ export function ChatModal({ isOpen, onClose, userName = "User", targetUserId }: 
   const { history } = useAIMemory(targetUserId);
   const [localHistory, setLocalHistory] = useState<AIChatHistory[]>([]);
   const router = useRouter();
+  const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
+  const [synthesizing, setSynthesizing] = useState(false);
+  const supabase = createClient();
+  const [audioContextRef] = useState<{ current: AudioContext | null }>({ current: null });
+  const [audioSourceRef] = useState<{ current: AudioBufferSourceNode | null }>({ current: null });
 
   useEffect(() => {
     setLocalHistory(history);
@@ -286,6 +265,138 @@ export function ChatModal({ isOpen, onClose, userName = "User", targetUserId }: 
       setLocalHistory(prev => prev.filter(msg => msg.id !== userTempId && msg.id !== aiTempId));
     }
   };
+
+  const unlockAudioContext = async (audioCtx: AudioContext) => {
+    if (audioCtx.state === 'suspended') {
+      console.log('Attempting to unlock audio context');
+      try {
+        await audioCtx.resume();
+        console.log('Audio context unlocked successfully');
+      } catch (error) {
+        console.error('Failed to unlock audio context:', error);
+      }
+    }
+  };
+
+  const synthesizeAndPlay = async (message: string, messageId: string) => {
+    if (synthesizing) return;
+    
+    try {
+      // If we're already playing this message, stop it
+      if (playingMessageId === messageId && audioSourceRef.current) {
+        console.log('Stopping current playback');
+        audioSourceRef.current.stop();
+        audioSourceRef.current = null;
+        setPlayingMessageId(null);
+        setSynthesizing(false);
+        return;
+      }
+      
+      setSynthesizing(true);
+      setPlayingMessageId(messageId);
+
+      const { data: voicePreference } = await supabase
+        .from('voice_preferences')
+        .select('voice_id')
+        .eq('user_id', targetUserId)
+        .eq('is_active', true)
+        .single();
+
+      if (!voicePreference?.voice_id) {
+        console.warn('No voice preference found');
+        return;
+      }
+
+      console.log('Starting synthesis for message:', message.substring(0, 50) + '...');
+      
+      const response = await fetch(`http://localhost:8000/tts/${voicePreference.voice_id}?user_id=${targetUserId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: message,
+          model_id: "eleven_monolingual_v1"
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Synthesis failed: ${response.status} ${response.statusText}`);
+      }
+
+      const contentType = response.headers.get('content-type');
+      console.log('Response received, content-type:', contentType);
+      
+      if (!contentType?.includes('audio/')) {
+        console.error('Invalid content type received:', contentType);
+        throw new Error('Invalid audio response');
+      }
+
+      const audioBlob = await response.blob();
+      console.log('Audio blob size:', audioBlob.size, 'bytes');
+      
+      if (audioBlob.size === 0) {
+        throw new Error('Empty audio response received');
+      }
+
+      // Reuse existing context or create a new one
+      if (!audioContextRef.current) {
+        const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+        audioContextRef.current = new AudioContext();
+        console.log('Created new audio context');
+      }
+
+      // Ensure audio context is unlocked
+      await unlockAudioContext(audioContextRef.current);
+
+      // Convert blob to array buffer
+      const arrayBuffer = await audioBlob.arrayBuffer();
+      console.log('Array buffer created, size:', arrayBuffer.byteLength);
+
+      // Decode the audio data
+      const audioBuffer = await audioContextRef.current.decodeAudioData(arrayBuffer);
+      console.log('Audio decoded, duration:', audioBuffer.duration);
+
+      // Create buffer source
+      const source = audioContextRef.current.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(audioContextRef.current.destination);
+      audioSourceRef.current = source;
+
+      // Handle completion
+      source.onended = () => {
+        console.log('Audio playback completed');
+        setPlayingMessageId(null);
+        if (audioSourceRef.current) {
+          audioSourceRef.current.disconnect();
+          audioSourceRef.current = null;
+        }
+      };
+
+      console.log('Starting audio playback');
+      source.start(0);
+      console.log('Audio playback started successfully');
+
+    } catch (error) {
+      console.error('Error in audio synthesis/playback:', error);
+      setPlayingMessageId(null);
+      if (audioSourceRef.current) {
+        audioSourceRef.current.disconnect();
+        audioSourceRef.current = null;
+      }
+    } finally {
+      setSynthesizing(false);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
+    };
+  }, []);
 
   if (!isOpen) return null;
 
@@ -422,11 +533,18 @@ export function ChatModal({ isOpen, onClose, userName = "User", targetUserId }: 
                               </div>
                               {msg.content && !msg.id.startsWith('temp-') && (
                                 <button
-                                  onClick={() => {/* TODO: Add play functionality */}}
-                                  className="ml-2 p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
-                                  aria-label="Play message"
+                                  onClick={() => synthesizeAndPlay(msg.content, msg.id)}
+                                  disabled={synthesizing && playingMessageId === msg.id}
+                                  className="ml-2 p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors disabled:opacity-50"
+                                  aria-label={synthesizing && playingMessageId === msg.id ? "Synthesizing speech..." : playingMessageId === msg.id ? "Stop playback" : "Play message"}
                                 >
-                                  <Play className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                                  {synthesizing && playingMessageId === msg.id ? (
+                                    <Loader2 className="w-4 h-4 text-gray-600 dark:text-gray-400 animate-spin" />
+                                  ) : playingMessageId === msg.id ? (
+                                    <Square className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                                  ) : (
+                                    <Play className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                                  )}
                                 </button>
                               )}
                             </div>
