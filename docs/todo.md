@@ -1,4 +1,12 @@
 ###TODO
+
+run this prompt:
+
+Now let's edit the @page.tsx so that under custom voice on the dropdown there is a "Trained" tag in blue right after the name of trained voices and a "Selected" tag next to the selected custom voice (last voice that was selected when the page had changes saved). On the right add a rename button next to the play/delete button. Also make a pause button that replaces the play button when it is playing.
+
+
+
+
 [ ] User selective Vector Storage
 [ ] Voice Synthesis
 [ ] Video Synthesis

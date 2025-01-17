@@ -340,16 +340,6 @@ export function VoiceSetup() {
       }
       formData.append('user_id', user.id);
 
-      // Log the request details for debugging
-      console.log('Training voice with:', {
-        name: `${user?.user_metadata?.full_name || 'Custom'}'s Voice`,
-        description: 'Personal voice clone created for AI avatar',
-        user_id: user.id,
-        file_size: selectedRecording.blob.size,
-        file_type: selectedRecording.blob.type,
-        duration: selectedRecording.duration
-      });
-
       const response = await fetch(`http://localhost:8000/voices/train`, {
         method: 'POST',
         body: formData,
@@ -360,6 +350,25 @@ export function VoiceSetup() {
         console.error('Voice training error:', responseData);
         throw new Error(responseData.detail || 'Failed to train voice');
       }
+
+      // Get the voice data from the response
+      const voiceData = await response.json();
+      
+      // Store voice information in the database
+      const { error: dbError } = await supabase
+        .from('voice_preferences')
+        .upsert({
+          user_id: user.id,
+          voice_id: voiceData.voice_id,
+          voice_name: voiceData.name,
+          voice_url: voiceData.voice_url,
+          preview_url: voiceData.preview_url,
+          is_custom_voice: true,
+          category: 'cloned',
+          auto_play: false
+        });
+
+      if (dbError) throw dbError;
 
       // Wait a moment for the voice to be processed before fetching the updated list
       setTimeout(async () => {

@@ -431,12 +431,19 @@ CREATE TABLE public.ai_chat_history (
     updated_at timestamptz default now()
 );
 
--- Voice Preferences table (simplified)
+-- Drop existing voice_preferences table
+DROP TABLE IF EXISTS public.voice_preferences CASCADE;
+
+-- Enhanced Voice Preferences table
 CREATE TABLE public.voice_preferences (
     user_id uuid references public.users(id) on delete cascade primary key,
-    voice_id text,  -- ElevenLabs voice ID for AI responses (either preset or custom)
+    voice_id text,  -- ElevenLabs voice ID
+    voice_name text, -- Name of the voice in ElevenLabs
+    voice_url text, -- URL for the voice in ElevenLabs
+    preview_url text, -- Preview URL for the voice
     auto_play boolean default false,
-    is_custom_voice boolean default false,  -- Flag to indicate if using a custom trained voice
+    is_custom_voice boolean default false,
+    category text check (category in ('premade', 'cloned')),
     created_at timestamptz default now(),
     updated_at timestamptz default now()
 );
@@ -478,5 +485,3 @@ create policy "Users can delete their own voice samples"
     bucket_id = 'voice-samples' 
     and auth.uid()::text = (storage.foldername(name))[1]
   );
-
- 
