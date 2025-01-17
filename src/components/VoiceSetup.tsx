@@ -66,6 +66,8 @@ export function VoiceSetup() {
   const [currentRecording, setCurrentRecording] = useState<Recording | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isTraining, setIsTraining] = useState(false);
+  const [editingVoiceId, setEditingVoiceId] = useState<string | null>(null);
+  const [editingVoiceName, setEditingVoiceName] = useState('');
 
   // Add function to save recording to storage
   const saveRecordingToStorage = async (recording: Recording) => {
@@ -200,6 +202,7 @@ export function VoiceSetup() {
   const fetchVoices = async () => {
     try {
       console.log('Fetching voices...');
+      // Get premade voices from API
       const response = await fetch('http://localhost:8000/voices/');
       const data = await response.json();
       
@@ -212,20 +215,30 @@ export function VoiceSetup() {
         ).values()
       ) as Voice[];
       
-      // Get custom voices (ensure unique)
-      const customVoices = Array.from(
-        new Map(
-          data
-            .filter((voice: Voice) => 
-              voice.category === 'cloned' && 
-              voice.name !== 'test-voice' &&
-              voice.preview_url
-            )
-            .map((voice: Voice) => [voice.voice_id, voice])
-        ).values()
-      ) as Voice[];
+      // Get custom voices from Supabase
+      const { data: customVoicesData, error } = await supabase
+        .from('voice_preferences')
+        .select('*')
+        .eq('is_custom', true)
+        .eq('user_id', user?.id);
+
+      if (error) throw error;
+
+      console.log('Custom voices from DB:', customVoicesData);
+      
+      // Convert DB voices to Voice type
+      const customVoices = customVoicesData.map(dbVoice => ({
+        voice_id: dbVoice.voice_id,
+        name: dbVoice.voice_name,
+        preview_url: dbVoice.preview_url,
+        preview_text: dbVoice.preview_text,
+        is_custom: true,
+        is_active: dbVoice.is_active,
+        category: 'cloned' as const
+      }));
       
       const allVoices = [...premadeVoices, ...customVoices];
+      console.log('All voices:', { premadeVoices, customVoices, allVoices });
       setVoices(allVoices);
       return data;
     } catch (error) {
@@ -742,6 +755,32 @@ export function VoiceSetup() {
     }
   };
 
+  const handleRenameVoice = async (voiceId: string, newName: string) => {
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from('voice_preferences')
+        .update({ voice_name: newName })
+        .eq('voice_id', voiceId)
+        .eq('user_id', user?.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setVoices(prev => prev.map(voice => 
+        voice.voice_id === voiceId ? { ...voice, name: newName } : voice
+      ));
+      setEditingVoiceId(null);
+      setEditingVoiceName('');
+      
+    } catch (error) {
+      console.error('Error renaming voice:', error);
+      alert('Failed to rename voice. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="mt-8 p-6 border border-gray-200 rounded-lg bg-white shadow-sm">
       <h2 className="text-xl font-semibold mb-4">Voice Settings</h2>
@@ -801,45 +840,48 @@ export function VoiceSetup() {
 
                   {isOpen && (
                     <div className="absolute z-[100] mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none">
-                      {voices.map((voice) => (
-                        <div
-                          key={voice.voice_id}
-                          className={`
-                            flex items-center justify-between px-3 py-2 cursor-pointer
-                            ${selectedDefaultVoice === voice.voice_id ? 'bg-blue-100' : 'hover:bg-gray-100'}
-                          `}
-                        >
+                      {voices
+                        .filter(voice => !voice.is_custom)
+                        .map((voice) => (
                           <div
-                            className="flex-1"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleVoiceSelect(voice.voice_id);
-                            }}
+                            key={voice.voice_id}
+                            className={`
+                              flex items-center justify-between px-3 py-2 cursor-pointer
+                              ${selectedDefaultVoice === voice.voice_id ? 'bg-blue-100' : 'hover:bg-gray-100'}
+                            `}
                           >
-                            {voice.name}
-                          </div>
-                          {voice.preview_url && (
-                            <button
-                              type="button"
+                            <div
+                              className="flex-1"
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                playPreview(voice);
+                                handleVoiceSelect(voice.voice_id);
                               }}
-                              className="ml-2 p-1 text-gray-400 hover:text-gray-600"
                             >
-                              {playingPreview === voice.voice_id ? (
-                                <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"/>
-                              ) : (
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                                </svg>
-                              )}
-                            </button>
-                          )}
-                        </div>
-                      ))}
+                              {voice.name}
+                            </div>
+                            {voice.preview_url && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  playPreview(voice);
+                                }}
+                                className="ml-2 p-1 text-gray-400 hover:text-gray-600"
+                              >
+                                {playingPreview === voice.voice_id ? (
+                                  <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"/>
+                                ) : (
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                                  </svg>
+                                )}
+                              </button>
+                            )}
+                          </div>
+                        ))
+                      }
                     </div>
                   )}
                 </div>
@@ -1031,22 +1073,15 @@ export function VoiceSetup() {
 
                     {isRecordingsOpen && (
                       <div className="absolute z-[100] mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none">
-                        {voices.filter(voice => 
-                          voice.category === 'cloned' && 
-                          voice.preview_url && 
-                          voice.is_custom // Only show custom voices
-                        ).length === 0 ? (
-                          <div className="px-3 py-2 text-gray-500 text-sm">
-                            No trained voices yet
-                          </div>
-                        ) : (
-                          voices
-                            .filter(voice => 
-                              voice.category === 'cloned' && 
-                              voice.preview_url && 
-                              voice.is_custom // Only show custom voices
-                            )
-                            .map((voice) => (
+                        {(() => {
+                          const customVoices = voices.filter(voice => voice.is_custom);
+                          console.log('Filtered custom voices for dropdown:', customVoices);
+                          return customVoices.length === 0 ? (
+                            <div className="px-3 py-2 text-gray-500 text-sm">
+                              No trained voices yet
+                            </div>
+                          ) : (
+                            customVoices.map((voice) => (
                               <div
                                 key={voice.voice_id}
                                 className={`
@@ -1055,18 +1090,77 @@ export function VoiceSetup() {
                                 `}
                               >
                                 <div className="flex flex-col flex-1">
-                                  <div
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      handleCustomVoiceSelect(voice.voice_id);
-                                    }}
-                                  >
-                                    {voice.name}
-                                  </div>
-                                  <div className="text-xs text-gray-500">
-                                    Click play to hear preview
-                                  </div>
+                                  {editingVoiceId === voice.voice_id ? (
+                                    <div
+                                      className="flex items-center gap-2"
+                                      onClick={e => e.stopPropagation()}
+                                    >
+                                      <input
+                                        type="text"
+                                        value={editingVoiceName}
+                                        onChange={(e) => setEditingVoiceName(e.target.value)}
+                                        className="flex-1 px-2 py-1 text-sm border rounded"
+                                        placeholder="Enter new name"
+                                        autoFocus
+                                        onClick={e => e.stopPropagation()}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            handleRenameVoice(voice.voice_id, editingVoiceName);
+                                          }
+                                        }}
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          handleRenameVoice(voice.voice_id, editingVoiceName);
+                                        }}
+                                        className="p-1 text-green-600 hover:text-green-700"
+                                      >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                        </svg>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setEditingVoiceId(null);
+                                          setEditingVoiceName('');
+                                        }}
+                                        className="p-1 text-red-600 hover:text-red-700"
+                                      >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                        </svg>
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleCustomVoiceSelect(voice.voice_id);
+                                      }}
+                                      className="flex items-center gap-2"
+                                    >
+                                      <span>{voice.name}</span>
+                                      <button
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          setEditingVoiceId(voice.voice_id);
+                                          setEditingVoiceName(voice.name);
+                                        }}
+                                        className="p-1 text-gray-400 hover:text-blue-600"
+                                      >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                        </svg>
+                                      </button>
+                                    </div>
+                                  )}
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <button
@@ -1106,7 +1200,8 @@ export function VoiceSetup() {
                                 </div>
                               </div>
                             ))
-                        )}
+                          );
+                        })()}
                       </div>
                     )}
                   </div>

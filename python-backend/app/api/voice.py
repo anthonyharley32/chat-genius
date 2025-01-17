@@ -113,22 +113,13 @@ async def train_voice(
         file_size = len(content)
         logger.info(f"File size: {file_size} bytes")
         
-        # ElevenLabs limits
+        # Check file size
         MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
-        MIN_FILE_SIZE = 1 * 1024 * 1024   # 1MB
-        
         if file_size > MAX_FILE_SIZE:
             logger.error(f"File too large: {file_size} bytes")
             raise HTTPException(
                 status_code=400,
                 detail=f"File too large. Maximum size is 10MB, got {file_size / 1024 / 1024:.1f}MB"
-            )
-            
-        if file_size < MIN_FILE_SIZE:
-            logger.error(f"File too small: {file_size} bytes")
-            raise HTTPException(
-                status_code=400,
-                detail=f"File too small. Minimum size is 1MB, got {file_size / 1024 / 1024:.1f}MB"
             )
             
         # Create labels
