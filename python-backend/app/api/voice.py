@@ -5,6 +5,7 @@ from pydantic import BaseModel
 import logging
 from supabase import create_client, Client # type: ignore
 import os
+import uuid
 
 # Initialize logging
 logger = logging.getLogger(__name__)
@@ -87,13 +88,15 @@ async def train_voice(
     name: str = Form(...),
     description: Optional[str] = Form(None),
     files: List[UploadFile] = File(...),
-    user_id: str = Form(...),
+    user_id: uuid.UUID = Form(...),
     service: ElevenLabsService = Depends(get_elevenlabs_service)
 ) -> Dict[str, Any]:
     """
     Upload samples for custom voice training
     """
     try:
+        logger.info(f"Starting voice training for user {user_id}")
+        
         # Read all files into memory
         audio_files = []
         for file in files:
@@ -102,33 +105,43 @@ async def train_voice(
                     status_code=400,
                     detail=f"Invalid file type: {file.content_type}. Must be audio."
                 )
+            logger.info(f"Reading file: {file.filename}")
             content = await file.read()
             audio_files.append(content)
             
         # Create labels
         labels = {"description": description} if description else None
+        logger.info("Sending to ElevenLabs for voice creation")
         
         # Add voice to ElevenLabs
         voice_data = await service.add_voice(name, audio_files, labels)
+        logger.info(f"Voice created with ID: {voice_data.get('voice_id', 'unknown')}")
         
         # Save training samples to storage
         for i, file in enumerate(files):
-            file_path = f"voice-samples/{user_id}/{voice_data['voice_id']}/sample_{i}.mp3"
+            # Create a unique file path using str(user_id)
+            file_path = f"{str(user_id)}/{voice_data['voice_id']}/sample_{i}.mp3"
+            logger.info(f"Uploading file to path: {file_path}")
             await file.seek(0)
             content = await file.read()
             
             # Upload to Supabase storage
+            logger.info("Starting Supabase storage upload")
             result = supabase.storage.from_("voice-samples").upload(
                 file_path,
-                content
+                content,
+                {"content-type": "audio/mpeg", "x-upsert": "true"}
             )
+            logger.info("Storage upload complete")
             
-            # Save sample record
+            # Save sample record with UUID
+            logger.info("Saving training sample record")
             supabase.table("voice_training_samples").insert({
-                "user_id": user_id,
+                "user_id": str(user_id),  # Convert UUID to string
                 "file_path": file_path,
                 "status": "processed"
             }).execute()
+            logger.info("Sample record saved")
             
         return voice_data
         

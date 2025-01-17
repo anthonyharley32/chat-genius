@@ -4,7 +4,7 @@ from typing import Dict, Any, Optional
 from pydantic import BaseModel
 from ..services.elevenlabs import ElevenLabsService
 import logging
-from supabase import create_client, Client
+from supabase import create_client, Client # type: ignore
 import os
 import io
 

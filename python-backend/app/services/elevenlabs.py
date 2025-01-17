@@ -99,16 +99,20 @@ class ElevenLabsService:
                 for i, file in enumerate(files)
             ]
             
-            data = {
-                "name": name,
+            # Create form data
+            form = {
+                "name": (None, name),
             }
+            
+            # Add labels if provided
             if labels:
-                data["labels"] = labels
+                for key, value in labels.items():
+                    form[f"labels[{key}]"] = (None, value)
                 
             response = await self.client.post(
                 "/voices/add",
-                data=data,
-                files=files_data
+                files=files_data,
+                data=form
             )
             response.raise_for_status()
             return response.json()

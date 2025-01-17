@@ -458,4 +458,12 @@ CREATE INDEX idx_ai_chat_history_user_id ON public.ai_chat_history(user_id);
 insert into storage.buckets (id, name, public) 
 values ('voice-samples', 'voice-samples', true);
 
+create policy "Voice samples are publicly accessible"
+  on storage.objects for select
+  using ( bucket_id = 'voice-samples' );
+
+create policy "Anyone can upload voice samples"
+  on storage.objects for insert
+  with check ( bucket_id = 'voice-samples' );
+
  

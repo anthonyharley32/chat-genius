@@ -11,10 +11,9 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 
 # Install Python packages
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Install uvicorn separately
-RUN pip install --no-cache-dir uvicorn
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir python-multipart && \
+    pip install --no-cache-dir "uvicorn[standard]"
 
 # Copy the rest of the application
 COPY . .
