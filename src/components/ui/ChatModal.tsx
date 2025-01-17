@@ -245,11 +245,13 @@ export function ChatModal({ isOpen, onClose, userName = "User", targetUserId }: 
       // Send the actual message
       const response = await sendMessage(message);
       
-      // Update AI message with actual response
+      // Update AI message with actual response and a permanent ID
+      const permanentId = `${Date.now()}-${Math.random().toString(36).substring(2)}`;
       setLocalHistory(prev => prev.map(msg => {
         if (msg.id === aiTempId) {
           return {
             ...msg,
+            id: permanentId, // Use a permanent ID instead of the temp one
             content: response.content,
             citations: response.citations,
             references: response.references,
