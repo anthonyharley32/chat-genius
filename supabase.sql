@@ -330,50 +330,51 @@ RETURNS TRIGGER AS $$
 BEGIN
   -- For channel messages
   IF NEW.channel_id IS NOT NULL THEN
-    -- Don't increment for the sender's own messages
-    INSERT INTO public.unread_messages (user_id, channel_id, unread_count)
+    INSERT INTO public.unread_messages (
+      user_id,
+      channel_id,
+      unread_count,
+      last_read_at
+    )
     SELECT 
       cm.user_id,
       NEW.channel_id,
-      1
+      1,
+      now()
     FROM public.channel_members cm
-    WHERE cm.channel_id = NEW.channel_id
-    AND cm.user_id != NEW.user_id
+    WHERE 
+      cm.channel_id = NEW.channel_id
+      AND cm.user_id != NEW.user_id
     ON CONFLICT (user_id, channel_id, dm_user_id)
-    DO UPDATE SET 
-      unread_count = CASE 
-        -- Only increment if the user isn't the sender
-        WHEN public.unread_messages.user_id != NEW.user_id THEN public.unread_messages.unread_count + 1
-        ELSE public.unread_messages.unread_count
-      END,
+    DO UPDATE SET
+      unread_count = public.unread_messages.unread_count + 1,
       updated_at = now();
   
   -- For direct messages
   ELSIF NEW.is_direct_message AND NEW.receiver_id IS NOT NULL THEN
-    -- Skip if it's a self-message
-    IF NEW.user_id != NEW.receiver_id THEN
-      -- Create/update unread count for the receiver
-      INSERT INTO public.unread_messages (user_id, dm_user_id, unread_count)
-      VALUES (NEW.receiver_id, NEW.user_id, 1)
-      ON CONFLICT (user_id, channel_id, dm_user_id)
-      DO UPDATE SET 
-        unread_count = public.unread_messages.unread_count + 1,
-        updated_at = now();
-
-      -- Also create a record for the sender (with count 0) if it doesn't exist
-      INSERT INTO public.unread_messages (user_id, dm_user_id, unread_count)
-      VALUES (NEW.user_id, NEW.receiver_id, 0)
-      ON CONFLICT (user_id, channel_id, dm_user_id)
-      DO NOTHING;
-    END IF;
+    INSERT INTO public.unread_messages (
+      user_id,
+      dm_user_id,
+      unread_count,
+      last_read_at
+    )
+    VALUES (
+      NEW.receiver_id,
+      NEW.user_id,
+      1,
+      now()
+    )
+    ON CONFLICT (user_id, channel_id, dm_user_id)
+    DO UPDATE SET
+      unread_count = public.unread_messages.unread_count + 1,
+      updated_at = now();
   END IF;
   
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Drop and recreate the trigger
-DROP TRIGGER IF EXISTS increment_unread_count_trigger ON public.messages;
+-- Create trigger for incrementing unread count
 CREATE TRIGGER increment_unread_count_trigger
   AFTER INSERT ON public.messages
   FOR EACH ROW

@@ -74,19 +74,23 @@ function CitationCard({
       minimizeAIChat();
     }
 
-    // Wait for the messages to load and render
-    setTimeout(() => {
-      const success = navigate(citation.messageId, { minimizeAIChat });
-      if (!success) {
-        // If first attempt fails, try again after another delay
+    // Try to navigate multiple times with increasing delays
+    const delays = [500, 1000, 1500, 2000];
+    let attemptCount = 0;
+
+    const attemptNavigation = () => {
+      if (attemptCount < delays.length) {
         setTimeout(() => {
-          const retrySuccess = navigate(citation.messageId, { minimizeAIChat });
-          if (!retrySuccess) {
-            console.warn(`Could not navigate to message ${citation.messageId} - element not found`);
+          const success = navigate(citation.messageId, { minimizeAIChat });
+          if (!success) {
+            attemptCount++;
+            attemptNavigation();
           }
-        }, 200);
+        }, delays[attemptCount]);
       }
-    }, 300);
+    };
+
+    attemptNavigation();
   };
 
   return (
