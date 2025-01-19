@@ -6,20 +6,23 @@
 
 
 ###DEBUG
+[!] Microphone not working.
+[!] "Ref 1" in audio transcription.
+[ ] thread indicator not updating in main chat log.
 [ ] Unread message error.
+[ ] minimized ai chat shows at top when maximized.
 [ ] Video show thumbnail and plays after refresh.
 [ ] 8s delay for message reactions and thread count in main chat log. (pushes log down)
 [ ] If you search a message twice lag.(Check page before navigating?)
 [ ] fix multiple users on same computer being logged in.
 [ ] after image send, rerenders
-[ ] thread indicator not updating in main chat log.
 [ ] Don't let voice setup accept mp4 etc.
 [ ] Citation clicking goes to bottom of page sometimes (race condition?)
-[ ] minimized ai chat shows at top when maximized.
 
 
 ###UI
 [ ] loading sign during login
+[!] Profile "Loading" Elements
 [ ] Message settings
 [ ] isolated videos w/ sound
 [ ] show display name not full name.

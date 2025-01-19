@@ -33,6 +33,8 @@ interface User {
   // ... other user properties
 }
 
+const API_URL = process.env.API_URL;
+
 export function VoiceSetup() {
   const [loading, setLoading] = useState(false);
   const [voices, setVoices] = useState<Voice[]>([]);
@@ -53,11 +55,11 @@ export function VoiceSetup() {
     isRecording,
     audioBlob,
     error,
+    duration,
     startRecording,
     stopRecording: stopRecordingHook,
   } = useVoiceRecorder();
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
-  const [recordingTime, setRecordingTime] = useState(0);
   const [playingRecordingId, setPlayingRecordingId] = useState<string | null>(null);
   const defaultContentRef = useRef<HTMLDivElement>(null);
   const customContentRef = useRef<HTMLDivElement>(null);
@@ -68,6 +70,19 @@ export function VoiceSetup() {
   const [isTraining, setIsTraining] = useState(false);
   const [editingVoiceId, setEditingVoiceId] = useState<string | null>(null);
   const [editingVoiceName, setEditingVoiceName] = useState('');
+  const [securityWarning, setSecurityWarning] = useState<string | null>(null);
+
+  // Add this function to check if we're in a secure context
+  const isSecureContext = () => {
+    return window.isSecureContext;
+  };
+
+  // Add useEffect to check security context
+  useEffect(() => {
+    if (!isSecureContext()) {
+      setSecurityWarning('Microphone access requires a secure (HTTPS) connection. Please ensure your site is served over HTTPS.');
+    }
+  }, []);
 
   // Add function to save recording to storage
   const saveRecordingToStorage = async (recording: Recording) => {
@@ -152,22 +167,18 @@ export function VoiceSetup() {
   }, [user?.id]);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    
-    if (isRecording) {
-      interval = setInterval(() => {
-        setRecordingTime(prev => prev + 1);
-      }, 1000);
-    } else {
-      setRecordingTime(0);
+    if (audioBlob) {
+      const timestamp = Date.now();
+      const newRecording: Recording = {
+        id: timestamp.toString(),
+        blob: audioBlob,
+        duration: duration,
+        timestamp,
+        type: 'recording'
+      };
+      setCurrentRecording(newRecording);
     }
-
-    return () => {
-      if (interval) {
-        clearInterval(interval);
-      }
-    };
-  }, [isRecording]);
+  }, [audioBlob, duration]);
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -202,8 +213,8 @@ export function VoiceSetup() {
   const fetchVoices = async () => {
     try {
       console.log('Fetching voices...');
-      // Get premade voices from API
-      const response = await fetch('http://localhost:8000/voices/');
+      // Update the API URL to use environment variable
+      const response = await fetch(`${API_URL}/voices/`);
       const data = await response.json();
       
       // Get premade voices (ensure unique)
@@ -565,20 +576,6 @@ export function VoiceSetup() {
       event.target.value = '';
     }
   };
-
-  useEffect(() => {
-    if (audioBlob) {
-      const timestamp = Date.now();
-      const newRecording: Recording = {
-        id: timestamp.toString(),
-        blob: audioBlob,
-        duration: recordingTime,
-        timestamp,
-        type: 'recording'
-      };
-      setCurrentRecording(newRecording);
-    }
-  }, [audioBlob]);
 
   const handleStopRecording = async () => {
     await stopRecordingHook();
@@ -946,7 +943,7 @@ export function VoiceSetup() {
                         <>
                           <span>Stop Recording</span>
                           <span className="w-2 h-2 rounded-full bg-red-300 animate-pulse"/>
-                          <span className="ml-2 text-sm">{formatTime(recordingTime)}</span>
+                          <span className="ml-2 text-sm">{formatTime(duration)}</span>
                         </>
                       ) : (
                         <>
@@ -1028,7 +1025,7 @@ export function VoiceSetup() {
                         )}
                       </button>
                       <span className="text-sm text-gray-600">
-                        Current Recording ({formatTime(currentRecording.duration)})
+                        Current Recording ({formatTime(duration)})
                       </span>
                       <button
                         onClick={(e) => {
