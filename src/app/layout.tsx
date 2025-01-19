@@ -3,6 +3,11 @@ import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 import { Navbar } from '@/components/Navbar';
 
+export const metadata = {
+  title: 'ChatGenius',
+  description: 'AI-powered chat application',
+};
+
 export default async function RootLayout({
   children,
 }: {
