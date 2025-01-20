@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  web:
+    container_name: nextjs-app-prod
+    build: 
+      context: .
+      target: production
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      # Add your NextJS production env vars here
+      - NEXT_PUBLIC_API_URL=https://api.example.com
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  python-backend:
+    container_name: python-backend-prod
+    build:
+      context: ./python-backend
+      dockerfile: Dockerfile
+      target: production
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1
+      # Add your Python backend production env vars here
+      - DATABASE_URL=postgresql://user:password@db:5432/dbname
+    restart: unless-stopped
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge 

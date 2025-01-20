@@ -1,29 +1,37 @@
-# Specify platform for M1/M2 Macs
-FROM --platform=linux/arm64 node:18-alpine
+# Base stage for both development and production
+FROM node:18-alpine AS base
+WORKDIR /app
 
 # Install Python and pip
 RUN apk add --no-cache python3 py3-pip
 
-# Set working directory
-WORKDIR /app
-
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
+# Development stage
+FROM base AS development
 RUN npm install
-
-# Copy project files
 COPY . .
+# Install Python packages
+RUN pip3 install --break-system-packages --no-cache-dir langchain-community
+EXPOSE 3000
+CMD ["npm", "run", "dev"]
 
-# Build the Next.js application
+# Production build stage
+FROM base AS builder
+RUN npm ci
+COPY . .
+# Install Python packages
+RUN pip3 install --break-system-packages --no-cache-dir langchain-community
 RUN npm run build
 
-# Install Python packages with the override flag
+# Production runtime stage
+FROM base AS production
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/package*.json ./
+RUN npm ci --production
+# Install Python packages
 RUN pip3 install --break-system-packages --no-cache-dir langchain-community
-
-# Expose port 3000
 EXPOSE 3000
-
-# Start the application
-CMD ["npm", "run", "dev", "--", "-p", "3000"] 
+CMD ["npm", "start"] 

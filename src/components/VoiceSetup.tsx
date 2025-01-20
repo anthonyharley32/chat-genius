@@ -33,7 +33,7 @@ interface User {
   // ... other user properties
 }
 
-const API_URL = process.env.API_URL;
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export function VoiceSetup() {
   const [loading, setLoading] = useState(false);

@@ -5,10 +5,9 @@ next-env.d.ts
 .next
 .DS_Store
 .env
-.env.*
+.env.local
 !.env.sample
 *.env
-!.env.example
 
 # Python
 __pycache__/
@@ -30,4 +29,31 @@ python-backend/.env
 *.swp
 *.swo
 .python-version
+.codefetchignore
+
+# Docker
+.docker/
+docker-compose.override.yml
+docker-compose.prod.yml
+*.dockerfile.local
+
+# Deployment
+.env.production
+.env.staging
+.env.development
+*.pem
+*.key
+*.crt
+*.cert
+.ssh/
+deploy_key
+deploy_key.pub
+
+# Build and temp files
+dist/
+build/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 .codefetchignore
