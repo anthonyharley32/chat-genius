@@ -276,6 +276,7 @@ export function ChatModal({ isOpen, onClose, userName = "User", targetUserId }: 
         console.log('Audio context unlocked successfully');
       } catch (error) {
         console.error('Failed to unlock audio context:', error);
+        throw error; // Propagate the error
       }
     }
   };
@@ -288,6 +289,7 @@ export function ChatModal({ isOpen, onClose, userName = "User", targetUserId }: 
       if (playingMessageId === messageId && audioSourceRef.current) {
         console.log('Stopping current playback');
         audioSourceRef.current.stop();
+        audioSourceRef.current.disconnect();
         audioSourceRef.current = null;
         setPlayingMessageId(null);
         setSynthesizing(false);
@@ -296,6 +298,12 @@ export function ChatModal({ isOpen, onClose, userName = "User", targetUserId }: 
       
       setSynthesizing(true);
       setPlayingMessageId(messageId);
+
+      // Clean up any existing audio context
+      if (audioContextRef.current?.state === 'running') {
+        await audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
 
       const { data: voicePreference } = await supabase
         .from('voice_preferences')
@@ -311,7 +319,7 @@ export function ChatModal({ isOpen, onClose, userName = "User", targetUserId }: 
 
       console.log('Starting synthesis for message:', message.substring(0, 50) + '...');
       
-      const response = await fetch(`http://localhost:8000/tts/${voicePreference.voice_id}?user_id=${targetUserId}`, {
+      const response = await fetch(`${window.location.protocol}//${window.location.hostname}:8000/tts/${voicePreference.voice_id}?user_id=${targetUserId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -341,12 +349,10 @@ export function ChatModal({ isOpen, onClose, userName = "User", targetUserId }: 
         throw new Error('Empty audio response received');
       }
 
-      // Reuse existing context or create a new one
-      if (!audioContextRef.current) {
-        const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-        audioContextRef.current = new AudioContext();
-        console.log('Created new audio context');
-      }
+      // Create new audio context
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      audioContextRef.current = new AudioContext();
+      console.log('Created new audio context');
 
       // Ensure audio context is unlocked
       await unlockAudioContext(audioContextRef.current);
@@ -370,8 +376,17 @@ export function ChatModal({ isOpen, onClose, userName = "User", targetUserId }: 
         console.log('Audio playback completed');
         setPlayingMessageId(null);
         if (audioSourceRef.current) {
-          audioSourceRef.current.disconnect();
+          try {
+            audioSourceRef.current.disconnect();
+          } catch (error) {
+            console.error('Error disconnecting audio source:', error);
+          }
           audioSourceRef.current = null;
+        }
+        // Close the audio context after playback
+        if (audioContextRef.current) {
+          audioContextRef.current.close().catch(console.error);
+          audioContextRef.current = null;
         }
       };
 
@@ -381,14 +396,29 @@ export function ChatModal({ isOpen, onClose, userName = "User", targetUserId }: 
 
     } catch (error) {
       console.error('Error in audio synthesis/playback:', error);
-      setPlayingMessageId(null);
-      if (audioSourceRef.current) {
-        audioSourceRef.current.disconnect();
-        audioSourceRef.current = null;
-      }
+      cleanup();
     } finally {
       setSynthesizing(false);
     }
+  };
+
+  // Add cleanup function
+  const cleanup = () => {
+    setPlayingMessageId(null);
+    if (audioSourceRef.current) {
+      try {
+        audioSourceRef.current.stop();
+      } catch (e) {
+        console.warn('Error stopping audio source:', e);
+      }
+      audioSourceRef.current.disconnect();
+      audioSourceRef.current = null;
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(console.error);
+      audioContextRef.current = null;
+    }
+    setSynthesizing(false);
   };
 
   useEffect(() => {

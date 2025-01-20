@@ -189,8 +189,66 @@ export function VoiceSetup() {
   useEffect(() => {
     const initializeVoiceSettings = async () => {
       if (user?.id) {
-        await fetchVoices();
-        await fetchUserVoice(); // This will now set the correct section
+        try {
+          setLoading(true);
+          
+          // First fetch all available voices
+          await fetchVoices();
+          
+          // Then fetch user's active voice preference
+          const { data: activeVoice, error } = await supabase
+            .from('voice_preferences')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('is_active', true)
+            .maybeSingle();
+
+          if (error) throw error;
+
+          // If no active voice is set, set Roger as default
+          if (!activeVoice) {
+            const rogerVoice = voices.find(v => v.name.toLowerCase().includes('roger'));
+            if (rogerVoice) {
+              console.log('Setting Roger as default voice');
+              const { error: insertError } = await supabase
+                .from('voice_preferences')
+                .insert({
+                  user_id: user.id,
+                  voice_id: rogerVoice.voice_id,
+                  voice_name: rogerVoice.name,
+                  is_custom: false,
+                  is_active: true,
+                  preview_text: rogerVoice.preview_text || 'This is the Roger voice.',
+                  preview_url: null
+                });
+
+              if (insertError) throw insertError;
+
+              setSelectedDefaultVoice(rogerVoice.voice_id);
+              setActiveSection('default');
+              localStorage.setItem('voiceSection', 'default');
+            }
+          } else {
+            // Set the active voice based on whether it's custom or default
+            if (activeVoice.is_custom) {
+              setSelectedCustomVoice(activeVoice.voice_id);
+              setSelectedDefaultVoice('');
+              setIsCustomVoice(true);
+              setActiveSection('custom');
+              localStorage.setItem('voiceSection', 'custom');
+            } else {
+              setSelectedDefaultVoice(activeVoice.voice_id);
+              setSelectedCustomVoice('');
+              setIsCustomVoice(false);
+              setActiveSection('default');
+              localStorage.setItem('voiceSection', 'default');
+            }
+          }
+        } catch (error) {
+          console.error('Error initializing voice settings:', error);
+        } finally {
+          setLoading(false);
+        }
       }
     };
 
@@ -210,11 +268,23 @@ export function VoiceSetup() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [user?.id]); // Only re-run when user ID changes
 
+  // Add this useEffect near the other useEffect hooks
+  useEffect(() => {
+    if (user?.id) {
+      console.log('Component mounted, fetching voices...');
+      fetchVoices().catch(console.error);
+    }
+  }, [user?.id]); // Only re-run if user ID changes
+
   const fetchVoices = async () => {
     try {
       console.log('Fetching voices...');
-      // Update the API URL to use environment variable
-      const response = await fetch(`${API_URL}/voices/`);
+      // Use window.location to build the API URL
+      const apiUrl = `${window.location.protocol}//${window.location.hostname}:8000/voices/`;
+      const response = await fetch(apiUrl);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       const data = await response.json();
       
       // Get premade voices (ensure unique)
@@ -251,57 +321,11 @@ export function VoiceSetup() {
       const allVoices = [...premadeVoices, ...customVoices];
       console.log('All voices:', { premadeVoices, customVoices, allVoices });
       setVoices(allVoices);
+
       return data;
     } catch (error) {
       console.error('Error fetching voices:', error);
       return [];
-    }
-  };
-
-  const fetchUserVoice = async () => {
-    if (!user?.id) return;
-    
-    try {
-      const { data: activeVoice, error } = await supabase
-        .from('voice_preferences')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .maybeSingle();
-
-      if (error) throw error;
-
-      if (activeVoice) {
-        if (activeVoice.is_custom) {
-          setSelectedCustomVoice(activeVoice.voice_id);
-          setSelectedDefaultVoice('');
-          setIsCustomVoice(true);
-          setActiveSection('custom');
-          localStorage.setItem('voiceSection', 'custom');
-        } else {
-          setSelectedDefaultVoice(activeVoice.voice_id);
-          setSelectedCustomVoice('');
-          setIsCustomVoice(false);
-          setActiveSection('default');
-          localStorage.setItem('voiceSection', 'default');
-        }
-      } else {
-        // If no active voice, check localStorage
-        const savedSection = localStorage.getItem('voiceSection') as 'default' | 'custom' | null;
-        if (savedSection) {
-          setActiveSection(savedSection);
-          setIsCustomVoice(savedSection === 'custom');
-        } else {
-          // Default to 'default' section if nothing is saved
-          setSelectedCustomVoice('');
-          setSelectedDefaultVoice('');
-          setIsCustomVoice(false);
-          setActiveSection('default');
-          localStorage.setItem('voiceSection', 'default');
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching user voice:', error);
     }
   };
 
