@@ -16,29 +16,11 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'api.dicebear.com',
         pathname: '/7.x/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'media-cldnry.s-nbcnews.com',
-        pathname: '/image/upload/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'fortune.com',
-        pathname: '/img-assets/wp-content/uploads/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 's.yimg.com',
-        pathname: '/ny/api/res/**',
       }
     ],
     domains: [
       'dcilkegklqmrjynrbjul.supabase.co',
-      'api.dicebear.com', 
-      'media-cldnry.s-nbcnews.com',
-      'fortune.com',
-      's.yimg.com'
+      'api.dicebear.com'
     ],
     dangerouslyAllowSVG: true,
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",

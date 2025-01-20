@@ -118,9 +118,9 @@ DROP FUNCTION IF EXISTS generate_timestamp;
 
 UPDATE public.users
 SET avatar_url = CASE
-    WHEN id = '11111111-1111-1111-1111-111111111111' THEN 'https://media-cldnry.s-nbcnews.com/image/upload/rockcms/2024-12/241219-elon-musk-vl-347p-f0e2a5.jpg'
-    WHEN id = '22222222-2222-2222-2222-222222222222' THEN 'https://fortune.com/img-assets/wp-content/uploads/2024/09/GettyImages-2153474303-e1727373782574.jpg?w=1440&q=75'
-    WHEN id = '33333333-3333-3333-3333-333333333333' THEN 'https://s.yimg.com/ny/api/res/1.2/GV1goPF7630bxdzV70zc0g--/YXBwaWQ9aGlnaGxhbmRlcjt3PTEyNDI7aD04MjE-/https://media.zenfs.com/en/quartz.com/2d1548277f90202517fa05b9a6f509cd'
+    WHEN id = '11111111-1111-1111-1111-111111111111' THEN 'avatars/eliot-muntz.jpg'
+    WHEN id = '22222222-2222-2222-2222-222222222222' THEN 'avatars/seth-alton.jpg'
+    WHEN id = '33333333-3333-3333-3333-333333333333' THEN 'avatars/jay-bezon.jpg'
 END
 WHERE id IN (
     '11111111-1111-1111-1111-111111111111',
