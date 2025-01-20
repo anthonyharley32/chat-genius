@@ -26,7 +26,7 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           source: "."
-          target: "/home/${{ secrets.EC2_USERNAME }}/app"
+          target: "/home/${{ secrets.EC2_USERNAME }}/app-vAuto"
 
       - name: Deploy to EC2
         uses: appleboy/ssh-action@master
@@ -35,7 +35,7 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd /home/${{ secrets.EC2_USERNAME }}/app
+            cd /home/${{ secrets.EC2_USERNAME }}/app-vAuto
             docker-compose -f docker-compose.prod.yml pull
             docker-compose -f docker-compose.prod.yml down
             docker-compose -f docker-compose.prod.yml up -d --build 
