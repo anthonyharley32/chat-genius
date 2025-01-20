@@ -11,7 +11,7 @@ export function Logo({ className = '' }: LogoProps) {
       alt="Chat Genius Logo"
       width={40}
       height={40}
-      className={`w-auto h-auto ${className}`}
+      className={className}
       priority
     />
   );
