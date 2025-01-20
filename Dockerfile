@@ -27,11 +27,22 @@ RUN npm run build
 
 # Production runtime stage
 FROM base AS production
+# Copy built assets
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/next.config.js ./
+COPY --from=builder /app/public ./public
+
+# Install production dependencies
 RUN npm ci --production
+
 # Install Python packages
 RUN pip3 install --break-system-packages --no-cache-dir langchain-community
+
+# Create directory for static files
+RUN mkdir -p /app/public
+RUN chmod -R 755 /app/public
+
 EXPOSE 3000
 CMD ["npm", "start"] 
